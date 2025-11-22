@@ -1,0 +1,111 @@
+# =======================================
+# Python
+# =======================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.env
+.venv/
+venv/
+env/
+
+# =======================================
+# Django
+# =======================================
+*.log
+*.pot
+*.pyc
+db.sqlite3
+media/
+staticfiles/
+static/
+local_settings.py
+
+# =======================================
+# Environment / Secrets
+# =======================================
+*.env
+.env.*
+!env.template
+!.env.example
+
+# =======================================
+# Celery
+# =======================================
+celerybeat.pid
+celerybeat-schedule
+*.pid
+
+# =======================================
+# Redis dump
+# =======================================
+dump.rdb
+
+# =======================================
+# PostgreSQL dumps
+# =======================================
+*.sql
+*.psql
+
+# =======================================
+# Docker
+# =======================================
+docker-compose.override.yml
+docker-compose.prod.yml
+docker-compose.local.yml
+*.seed
+**/.docker
+**/docker-data/
+**/docker/
+
+# =======================================
+# Node / React / Vite
+# =======================================
+node_modules/
+dist/
+build/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+.vite/
+vite.config.js.timestamp*
+
+# =======================================
+# VSCode / PyCharm / Editors
+# =======================================
+.vscode/
+.idea/
+*.code-workspace
+
+# =======================================
+# System
+# =======================================
+.DS_Store
+Thumbs.db
+
+# =======================================
+# Testing
+# =======================================
+.coverage
+htmlcov/
+pytest_cache/
+.pytest_cache/
+.tox/
+.mypy_cache/
+
+# =======================================
+# Reports
+# =======================================
+*.coverage
+coverage.xml
+report.xml
+
+# =======================================
+# Virtualizer / Containers
+# =======================================
+.parcel-cache/
+.cache/
