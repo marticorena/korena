@@ -8,6 +8,7 @@ COPY requirements.in ./
 
 RUN pip install --upgrade pip && \
     pip install pip-tools && \
+    pip-compile requirements.in && \
     pip install -r requirements.txt
 
 COPY . .
