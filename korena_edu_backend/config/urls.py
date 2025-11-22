@@ -19,4 +19,8 @@ from django.urls import path
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path("healthz/", healthz),
+    path("readyz/", readyz),
+    path("graphql/", include("graphene_django.views", namespace="graphql")),
+    path("api/", include("apps.documents.api_urls")),
 ]

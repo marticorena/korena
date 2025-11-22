@@ -1,3 +1,63 @@
+from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
-# Create your models here.
+
+class EmailTemplate(models.Model):
+    code = models.SlugField(unique=True)
+    name = models.CharField(max_length=200)
+    subject = models.CharField(max_length=255)
+    body = models.TextField(
+        help_text="Template body with placeholders like {{ user_name }}."
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class EmailStatus(models.TextChoices):
+    PENDING = "PENDING", "Pendiente"
+    SENT = "SENT", "Enviado"
+    FAILED = "FAILED", "Fallido"
+
+
+class EmailLog(models.Model):
+    template = models.ForeignKey(
+        EmailTemplate,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="logs",
+    )
+    to_email = models.EmailField()
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="email_logs",
+    )
+
+    subject = models.CharField(max_length=255)
+    body_snapshot = models.TextField()
+
+    status = models.CharField(
+        max_length=20,
+        choices=EmailStatus.choices,
+        default=EmailStatus.PENDING,
+    )
+    error_message = models.TextField(blank=True)
+    provider_message_id = models.CharField(max_length=255, blank=True)
+    retries = models.PositiveIntegerField(default=0)
+
+    created_at = models.DateTimeField(default=timezone.now)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    last_attempt_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.to_email} - {self.subject} [{self.status}]"
