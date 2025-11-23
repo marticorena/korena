@@ -4,11 +4,22 @@ from django.utils import timezone
 
 
 class PlanningLevel(models.TextChoices):
+    """Enumeration for the different planning levels."""
+
     TEACHER = "TEACHER", "Nivel Docente"
     CLASSROOM = "CLASSROOM", "Nivel Aula"
 
 
 class PlanningSheet(models.Model):
+    """Represents a planning sheet used by teachers or classroom level.
+
+    A planning sheet stores structural information such as:
+    - level (teacher or classroom)
+    - title and description
+    - sheet type and context (grade, area, school year)
+    - a JSON schema describing the columns used by the frontend grid
+    """
+
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -37,10 +48,19 @@ class PlanningSheet(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self) -> str:
+        """Return the planning sheet title as its string representation."""
+
         return self.title
 
 
 class PlanningRow(models.Model):
+    """Represents a single row inside a planning sheet.
+
+    Each row contains:
+    - an index indicating its position
+    - a JSON payload with the row data
+    """
+
     sheet = models.ForeignKey(
         PlanningSheet,
         on_delete=models.CASCADE,
@@ -56,4 +76,6 @@ class PlanningRow(models.Model):
         ordering = ["index"]
 
     def __str__(self) -> str:
+        """Return a readable representation combining sheet title and row index."""
+
         return f"{self.sheet.title} - row {self.index}"

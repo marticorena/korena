@@ -14,13 +14,21 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+
+from apps.health.views import healthz, readyz
 from django.contrib import admin
-from django.urls import path
+from django.urls import include, path
+from graphene_file_upload.django import FileUploadGraphQLView
+from schema import schema
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path("admin/", admin.site.urls),
     path("healthz/", healthz),
     path("readyz/", readyz),
-    path("graphql/", include("graphene_django.views", namespace="graphql")),
+    path(
+        "graphql/",
+        FileUploadGraphQLView.as_view(schema=schema, graphiql=True),
+        name="graphql",
+    ),
     path("api/", include("apps.documents.api_urls")),
 ]

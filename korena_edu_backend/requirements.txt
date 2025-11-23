@@ -10,15 +10,35 @@ asgiref==3.11.0
     # via
     #   channels
     #   channels-redis
+    #   daphne
     #   django
+    #   django-cors-headers
+attrs==25.4.0
+    # via
+    #   service-identity
+    #   twisted
+autobahn==25.10.2
+    # via daphne
+automat==25.4.16
+    # via twisted
 bcrypt==4.2.0
     # via -r requirements.in
 billiard==4.2.3
     # via celery
 black==24.10.0
     # via -r requirements.in
+brotli==1.2.0
+    # via fonttools
+cachetools==6.2.2
+    # via premailer
 celery==5.4.0
     # via -r requirements.in
+certifi==2025.11.12
+    # via requests
+cffi==2.0.0
+    # via
+    #   cryptography
+    #   weasyprint
 cfgv==3.5.0
     # via pre-commit
 channels==4.1.0
@@ -27,6 +47,8 @@ channels==4.1.0
     #   channels-redis
 channels-redis==4.2.0
     # via -r requirements.in
+charset-normalizer==3.4.4
+    # via requests
 click==8.3.1
     # via
     #   black
@@ -44,28 +66,52 @@ colorama==0.4.6
     # via
     #   click
     #   pytest
+constantly==23.10.4
+    # via twisted
 coverage[toml]==7.12.0
     # via pytest-cov
+cryptography==46.0.3
+    # via
+    #   autobahn
+    #   pyopenssl
+    #   service-identity
+cssselect==1.3.0
+    # via premailer
+cssselect2==0.8.0
+    # via weasyprint
+cssutils==2.11.1
+    # via premailer
+daphne==4.1.0
+    # via -r requirements.in
 distlib==0.4.0
     # via virtualenv
 django==5.1.3
     # via
     #   -r requirements.in
     #   channels
+    #   django-cors-headers
+    #   django-graphql-jwt
     #   django-redis
-    #   djangorestframework
     #   graphene-django
-django-environ==0.11.2
+django-cors-headers==4.9.0
+    # via -r requirements.in
+django-graphql-jwt==0.4.0
     # via -r requirements.in
 django-redis==5.4.0
     # via -r requirements.in
-djangorestframework==3.15.2
-    # via -r requirements.in
 filelock==3.20.0
     # via virtualenv
+fonttools[woff]==4.60.1
+    # via weasyprint
 graphene==3.4.3
-    # via graphene-django
+    # via
+    #   django-graphql-jwt
+    #   graphene-django
 graphene-django==3.2.2
+    # via
+    #   -r requirements.in
+    #   django-graphql-jwt
+graphene-file-upload==1.3.0
     # via -r requirements.in
 graphql-core==3.2.7
     # via
@@ -76,14 +122,29 @@ graphql-relay==3.2.0
     # via
     #   graphene
     #   graphene-django
+hyperlink==21.0.0
+    # via
+    #   autobahn
+    #   twisted
 identify==2.6.15
     # via pre-commit
+idna==3.11
+    # via
+    #   hyperlink
+    #   requests
+    #   twisted
+incremental==24.7.2
+    # via twisted
 iniconfig==2.3.0
     # via pytest
 isort==5.13.2
     # via -r requirements.in
 kombu==5.6.0
     # via celery
+lxml==6.0.2
+    # via premailer
+more-itertools==10.8.0
+    # via cssutils
 msgpack==1.1.2
     # via channels-redis
 mypy-extensions==1.1.0
@@ -98,7 +159,9 @@ packaging==25.0
 pathspec==0.12.1
     # via black
 pillow==10.4.0
-    # via -r requirements.in
+    # via
+    #   -r requirements.in
+    #   weasyprint
 platformdirs==4.5.0
     # via
     #   black
@@ -107,12 +170,32 @@ pluggy==1.6.0
     # via pytest
 pre-commit==4.0.1
     # via -r requirements.in
+premailer==3.10.0
+    # via -r requirements.in
+prometheus-client==0.20.0
+    # via -r requirements.in
 promise==2.3
     # via graphene-django
 prompt-toolkit==3.0.52
     # via click-repl
 psycopg2-binary==2.9.9
     # via -r requirements.in
+pyasn1==0.6.1
+    # via
+    #   pyasn1-modules
+    #   service-identity
+pyasn1-modules==0.4.2
+    # via service-identity
+pycparser==2.23
+    # via cffi
+pydyf==0.11.0
+    # via weasyprint
+pyjwt==2.10.1
+    # via django-graphql-jwt
+pyopenssl==25.3.0
+    # via twisted
+pyphen==0.17.2
+    # via weasyprint
 pytest==8.3.3
     # via
     #   -r requirements.in
@@ -126,7 +209,7 @@ python-dateutil==2.9.0.post0
     # via
     #   celery
     #   graphene
-python-dotenv==1.0.1
+python-decouple==3.8
     # via -r requirements.in
 pyyaml==6.0.3
     # via pre-commit
@@ -135,23 +218,43 @@ redis==5.0.7
     #   -r requirements.in
     #   channels-redis
     #   django-redis
+requests==2.32.5
+    # via premailer
 ruff==0.7.0
     # via -r requirements.in
+service-identity==24.2.0
+    # via twisted
 six==1.17.0
     # via
+    #   graphene-file-upload
     #   promise
     #   python-dateutil
 sqlparse==0.5.3
     # via django
 text-unidecode==1.3
     # via graphene-django
+tinycss2==1.5.0
+    # via
+    #   cssselect2
+    #   weasyprint
+tinyhtml5==2.0.0
+    # via weasyprint
+twisted[tls]==25.5.0
+    # via daphne
+txaio==25.9.2
+    # via autobahn
 typing-extensions==4.15.0
-    # via graphene
+    # via
+    #   graphene
+    #   pyopenssl
+    #   twisted
 tzdata==2025.2
     # via
     #   celery
     #   django
     #   kombu
+urllib3==2.5.0
+    # via requests
 vine==5.1.0
     # via
     #   amqp
@@ -161,3 +264,17 @@ virtualenv==20.35.4
     # via pre-commit
 wcwidth==0.2.14
     # via prompt-toolkit
+weasyprint==66.0
+    # via -r requirements.in
+webencodings==0.5.1
+    # via
+    #   cssselect2
+    #   tinycss2
+    #   tinyhtml5
+zope.interface==8.1.1
+    # via twisted
+zopfli==0.4.0
+    # via fonttools
+
+# The following packages are considered to be unsafe in a requirements file:
+# setuptools

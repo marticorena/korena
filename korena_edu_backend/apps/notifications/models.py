@@ -4,6 +4,12 @@ from django.utils import timezone
 
 
 class EmailTemplate(models.Model):
+    """Represents an email template used for notifications.
+
+    The template contains a subject, a text body with placeholders
+    (e.g., {{ user_name }}), and metadata such as active state.
+    """
+
     code = models.SlugField(unique=True)
     name = models.CharField(max_length=200)
     subject = models.CharField(max_length=255)
@@ -14,16 +20,30 @@ class EmailTemplate(models.Model):
     created_at = models.DateTimeField(default=timezone.now)
 
     def __str__(self) -> str:
+        """Return the template name."""
+
         return self.name
 
 
 class EmailStatus(models.TextChoices):
+    """Enumeration of possible email delivery states."""
+
     PENDING = "PENDING", "Pendiente"
     SENT = "SENT", "Enviado"
     FAILED = "FAILED", "Fallido"
 
 
 class EmailLog(models.Model):
+    """Stores the delivery history of sent emails.
+
+    This includes:
+    - The template used (if any)
+    - The destination email
+    - A rendered snapshot of the body at the moment of sending
+    - Delivery status and provider message ID
+    - Retry count and timestamps
+    """
+
     template = models.ForeignKey(
         EmailTemplate,
         on_delete=models.SET_NULL,
@@ -60,4 +80,6 @@ class EmailLog(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self) -> str:
+        """Return a readable representation of the sent email log."""
+
         return f"{self.to_email} - {self.subject} [{self.status}]"

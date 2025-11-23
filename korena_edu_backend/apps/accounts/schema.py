@@ -1,20 +1,38 @@
-import graphene
-from graphene_django import DjangoObjectType
+from typing import Optional
 
+import graphene
 from apps.accounts.models import User
+from graphene_django import DjangoObjectType
+from graphql import GraphQLResolveInfo
 
 
 class UserType(DjangoObjectType):
+    """GraphQL type representing the User model."""
+
     class Meta:
         model = User
         fields = ("id", "email", "first_name", "last_name", "role")
 
 
 class Query(graphene.ObjectType):
+    """Root query class for user-related GraphQL operations."""
+
     me = graphene.Field(UserType)
 
-    def resolve_me(self, info):
-        user = info.context.user
+    def resolve_me(self, info: GraphQLResolveInfo, **kwargs) -> Optional[User]:
+        """Return the authenticated user.
+
+        Args:
+            info (GraphQLResolveInfo): GraphQL resolver information.
+            **kwargs: Additional arguments passed by Graphene.
+
+        Returns:
+            Optional[User]: Returns the current user or None if anonymous.
+        """
+        user: User = info.context.user
+
+        # Anonymous users do not have associated User instances
         if user.is_anonymous:
             return None
+
         return user
