@@ -1,11 +1,10 @@
 services:
   django-app:
     build: .
-    command: daphne -b 0.0.0.0 -p 8000 config.asgi:application
+#    command: daphne -b 0.0.0.0 -p 8000 config.asgi:application
+    command: python manage.py runserver 0.0.0.0:8000
     volumes:
       - .:/django-app
-      - ./static:/django-app/static/
-      - ./media:/django-app/media/
     env_file:
       - .env
     expose:
@@ -55,7 +54,6 @@ services:
 
   nginx:
     image: nginx:latest
-    container_name: nginx
     ports:
       - "8000:80"
     volumes:
@@ -69,7 +67,6 @@ services:
 
   redis:
     image: redis:7
-    container_name: redis
     networks:
       - django-app-network
 
@@ -78,4 +75,4 @@ volumes:
 
 networks:
   django-app-network:
-    external: true
+    driver: bridge

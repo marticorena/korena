@@ -2,6 +2,7 @@
 Django settings for config project.
 """
 
+from datetime import timedelta
 from pathlib import Path
 
 from decouple import Csv, config
@@ -16,7 +17,10 @@ BASE_DIR: Path = Path(__file__).resolve().parent.parent
 SECRET_KEY = config("SECRET_KEY", default="change-me")
 DEBUG = config("DEBUG", cast=bool, default=False)
 ALLOWED_HOSTS = config("ALLOWED_HOSTS", cast=Csv(), default="*")
-
+CSRF_TRUSTED_ORIGINS = config("CSRF_TRUSTED_ORIGINS", default="").split(",")
+CORS_ALLOWED_ORIGINS = config("CORS_ALLOWED_ORIGINS", default="").split(",")
+CORS_ALLOW_CREDENTIALS = True
+CORS_EXPOSE_HEADERS = ["Content-Disposition"]
 
 # -------------------------------------------------------------------
 # INSTALLED APPS
@@ -30,12 +34,13 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "graphql_jwt.refresh_token.apps.RefreshTokenConfig",
     # Third-party
     "graphene_django",
     "graphql_jwt",
     "graphene_file_upload",
     "channels",
-    "django_cors_headers",
+    "corsheaders",
     "django_redis",
     # Local apps
     "apps.accounts",
@@ -55,7 +60,9 @@ AUTH_USER_MODEL = "accounts.User"
 # -------------------------------------------------------------------
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -79,6 +86,7 @@ TEMPLATES = [
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
+                "django.template.context_processors.debug",
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
@@ -128,6 +136,15 @@ CELERY_BROKER_URL = config("CELERY_BROKER_URL", default="redis://redis:6379/0")
 CELERY_RESULT_BACKEND = config("CELERY_RESULT_BACKEND", default="redis://redis:6379/1")
 CELERY_TIMEZONE = "America/Lima"
 
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": config("REDIS_CACHE_URL", default="redis://redis:6379/2"),
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
+    }
+}
 
 # -------------------------------------------------------------------
 # EMAIL
@@ -147,15 +164,23 @@ DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="no-reply@korena.pe")
 # -------------------------------------------------------------------
 
 GRAPHENE = {
-    "SCHEMA": "schema.schema",
+    "SCHEMA": "config.schema.schema",
     "MIDDLEWARE": [
-        "graphene_django.debug.DjangoDebugMiddleware",
+        "graphql_jwt.middleware.JSONWebTokenMiddleware",
     ],
 }
+
+AUTHENTICATION_BACKENDS = [
+    "graphql_jwt.backends.JSONWebTokenBackend",
+    "django.contrib.auth.backends.ModelBackend",
+]
 
 GRAPHQL_JWT = {
     "JWT_VERIFY_EXPIRATION": True,
     "JWT_LONG_RUNNING_REFRESH_TOKEN": True,
+    "JWT_EXPIRATION_DELTA": timedelta(minutes=30),
+    "JWT_REFRESH_EXPIRATION_DELTA": timedelta(days=7),
+    "JWT_COOKIE_NAME": None,
 }
 
 
@@ -188,7 +213,7 @@ USE_TZ = True
 # -------------------------------------------------------------------
 
 STATIC_URL = "/static/"
-STATIC_ROOT = BASE_DIR / "staticfiles"
+STATIC_ROOT = BASE_DIR / "static"
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
@@ -216,3 +241,10 @@ LOGGING = {
     },
     "root": {"handlers": ["console"], "level": "INFO"},
 }
+
+# -------------------------------------------------------------------
+# FRONTEND
+# -------------------------------------------------------------------
+
+FRONTEND_URL = config("FRONTEND_URL", default="http://localhost:5173")
+SESSION_COOKIE_NAME = "korena-edu-django"

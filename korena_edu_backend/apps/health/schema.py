@@ -7,73 +7,67 @@ from graphql import GraphQLResolveInfo
 
 
 class HealthStatusType(graphene.ObjectType):
-    """GraphQL type representing the application's health status."""
+    """GraphQL type representing application health."""
 
     status = graphene.String(required=True)
     db_ok = graphene.Boolean()
     redis_ok = graphene.Boolean()
+    details = graphene.String()
 
 
 class HealthQueries(graphene.ObjectType):
-    """GraphQL queries exposing health and readiness probes."""
+    """GraphQL health and readiness probes."""
 
     healthz = graphene.Field(
         HealthStatusType,
-        description="Liveness probe: if this endpoint responds, the app is alive.",
+        description="Liveness probe.",
     )
     readyz = graphene.Field(
         HealthStatusType,
-        description="Readiness probe: checks database and Redis availability.",
+        description="Readiness probe.",
     )
 
     def resolve_healthz(
-        self,
-        info: GraphQLResolveInfo,
-        **kwargs: Any,
+        self, info: GraphQLResolveInfo, **kwargs: Any
     ) -> HealthStatusType:
-        """Return a basic liveness response.
-
-        Args:
-            info (GraphQLResolveInfo): GraphQL resolver information.
-            **kwargs (Any): Additional resolver arguments (unused).
-
-        Returns:
-            HealthStatusType: A minimal health status object.
-        """
-
-        return HealthStatusType(status="ok", db_ok=None, redis_ok=None)
+        """Liveness probe: app is running."""
+        return HealthStatusType(
+            status="ok",
+            db_ok=None,
+            redis_ok=None,
+            details="Service is alive",
+        )
 
     def resolve_readyz(
-        self,
-        info: GraphQLResolveInfo,
-        **kwargs: Any,
+        self, info: GraphQLResolveInfo, **kwargs: Any
     ) -> HealthStatusType:
-        """Check readiness by verifying DB and Redis connectivity.
+        """Readiness: DB + Redis must be ready."""
+        errors = []
 
-        Args:
-            info (GraphQLResolveInfo): GraphQL resolver information.
-            **kwargs (Any): Additional resolver arguments (unused).
-
-        Returns:
-            HealthStatusType: A detailed readiness status.
-        """
-        # Check database connection
+        # DB check
         try:
             with connection.cursor() as cursor:
                 cursor.execute("SELECT 1;")
                 cursor.fetchone()
             db_ok = True
-        except Exception:
+        except Exception as exc:
             db_ok = False
+            errors.append(f"DB error: {exc}")
 
-        # Check Redis connection
+        # Redis check
         try:
             redis_conn = get_redis_connection("default")
             redis_conn.ping()
             redis_ok = True
-        except Exception:
+        except Exception as exc:
             redis_ok = False
+            errors.append(f"Redis error: {exc}")
 
-        status = "ok" if db_ok and redis_ok else "error"
+        overall_status = "ok" if db_ok and redis_ok else "error"
 
-        return HealthStatusType(status=status, db_ok=db_ok, redis_ok=redis_ok)
+        return HealthStatusType(
+            status=overall_status,
+            db_ok=db_ok,
+            redis_ok=redis_ok,
+            details="; ".join(errors) or "All systems operational",
+        )

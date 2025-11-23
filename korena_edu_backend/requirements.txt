@@ -271,7 +271,7 @@ webencodings==0.5.1
     #   cssselect2
     #   tinycss2
     #   tinyhtml5
-zope.interface==8.1.1
+zope-interface==8.1.1
     # via twisted
 zopfli==0.4.0
     # via fonttools

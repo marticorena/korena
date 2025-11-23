@@ -1,6 +1,12 @@
 from typing import Optional
 
 import graphene
+from apps.core.metrics import (
+    document_upload_duration_seconds,
+    document_versions_uploaded_total,
+    documents_by_level_total,
+    track_graphql_operation,
+)
 from apps.documents.models import Document as DocumentModel
 from apps.documents.models import DocumentLevel
 from apps.documents.models import DocumentType as DocumentTypeModel
@@ -160,6 +166,7 @@ class UploadDocumentVersion(graphene.Mutation):
     document_version = graphene.Field(DocumentVersionType)
     document = graphene.Field(DocumentType)
 
+    @track_graphql_operation("upload_document_version")
     @classmethod
     def mutate(
         cls,
@@ -193,15 +200,20 @@ class UploadDocumentVersion(graphene.Mutation):
         except DocumentModel.DoesNotExist as exc:
             raise GraphQLError("Documento no encontrado o no te pertenece.") from exc
 
-        version = DocumentVersionModel.objects.create(
-            document=document,
-            file=file,
-            status=DocumentVersionStatus.DRAFT,
-            created_by=user,
-        )
+        with document_upload_duration_seconds.time():
+            version = DocumentVersionModel.objects.create(
+                document=document,
+                file=file,
+                status=DocumentVersionStatus.DRAFT,
+                created_by=user,
+            )
 
-        document.current_version = version
-        document.save(update_fields=["current_version"])
+            document.current_version = version
+            document.save(update_fields=["current_version"])
+
+        # Increment counters for metrics
+        document_versions_uploaded_total.inc()
+        documents_by_level_total.labels(level=document.type.level).inc()
 
         return cls(document_version=version, document=document)
 

@@ -35,15 +35,18 @@ Create the `.env` file and update the values:
 ## 5. Run commands inside Docker
 
 ```bash
-  docker-compose exec web python manage.py createsuperuser
+  docker-compose exec django-app python manage.py createsuperuser
 ```
 
 ```bash
-  docker-compose exec web python manage.py makemigrations
+  docker-compose exec django-app python manage.py makemigrations
 ```
 
 ```bash
-  docker-compose exec web python manage.py migrate
+  docker-compose exec django-app python manage.py migrate
+```
+```bash
+  docker-compose exec django-app python manage.py collectstatic --noinput
 ```
 
 ---
