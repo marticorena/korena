@@ -1,18 +1,10 @@
 from typing import Any
 
 import graphene
+from apps.core.schema.types import HealthStatusType
 from django.db import connection
 from django_redis import get_redis_connection
 from graphql import GraphQLResolveInfo
-
-
-class HealthStatusType(graphene.ObjectType):
-    """GraphQL type representing application health."""
-
-    status = graphene.String(required=True)
-    db_ok = graphene.Boolean()
-    redis_ok = graphene.Boolean()
-    details = graphene.String()
 
 
 class HealthQueries(graphene.ObjectType):

@@ -46,7 +46,6 @@ INSTALLED_APPS = [
     "apps.accounts",
     "apps.core",
     "apps.documents",
-    "apps.health",
     "apps.notifications",
     "apps.planning",
     "apps.schools",

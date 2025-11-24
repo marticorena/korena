@@ -2,16 +2,8 @@ from typing import Optional
 
 import graphene
 from apps.accounts.models import User
-from graphene_django import DjangoObjectType
+from apps.accounts.schema.types import UserType
 from graphql import GraphQLResolveInfo
-
-
-class UserType(DjangoObjectType):
-    """GraphQL type representing the User model."""
-
-    class Meta:
-        model = User
-        fields = ("id", "email", "first_name", "last_name", "role")
 
 
 class Query(graphene.ObjectType):
