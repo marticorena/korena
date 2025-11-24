@@ -3,7 +3,6 @@ repos:
     rev: 5.13.2
     hooks:
       - id: isort
-        args: ["--profile", "black"]
         exclude: "migrations/"
 
   - repo: https://github.com/psf/black

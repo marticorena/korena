@@ -78,7 +78,10 @@ Install pre-commit hooks:
 ## 7. Tests
 
 ```bash
-  pytest
+  docker compose exec django-app pytest
+```
+```bash
+  docker compose exec django-app pytest --cov=. --cov-report=html
 ```
 
 ---
