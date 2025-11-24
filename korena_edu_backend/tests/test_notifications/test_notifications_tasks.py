@@ -6,20 +6,11 @@ from django.core import mail
 import pytest
 
 from apps.core.metrics import emails_sent_total
+from apps.core.utils import get_metric_value
 from apps.notifications.models import EmailLog, EmailStatus
 from apps.notifications.tasks import send_email_task
 
 MONKEYPATCH_FILE = "apps.notifications.tasks"
-
-
-def get_metric_value(counter, **labels: str) -> float:
-    """Return the value of a labeled Prometheus counter."""
-    for metric in counter.collect():
-        for sample in metric.samples:
-            if sample.labels == labels:
-                return float(sample.value)
-
-    return 0.0
 
 
 @pytest.mark.django_db

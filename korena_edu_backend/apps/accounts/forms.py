@@ -1,21 +1,8 @@
 from django import forms
 from django.contrib.auth import get_user_model
-from django.core.validators import RegexValidator
 
-from apps.core.messages import (
-    EMAIL_VALIDATOR_ERROR,
-    NAME_VALIDATOR_ERROR,
-    PASSWORD_VALIDATOR_ERROR,
-    PASSWORDS_DONT_MATCH,
-)
-
-# Validators
-name_validator = RegexValidator(r"^[A-Za-zÁÉÍÓÚáéíóúÑñ ]{2,}$", NAME_VALIDATOR_ERROR)
-email_validator = RegexValidator(r"^[\w\.\+-]+@[\w\.-]+\.\w+$", EMAIL_VALIDATOR_ERROR)
-password_validator = RegexValidator(
-    r"^(?=.*\d)(?=.*[!@#$%^&*()_+\-={}[\]:'\";<>?,./]).{8,}$",
-    PASSWORD_VALIDATOR_ERROR,
-)
+from apps.accounts.validators import email_validator, name_validator, password_validator
+from apps.core.messages import PASSWORDS_DONT_MATCH
 
 User = get_user_model()
 
@@ -93,5 +80,27 @@ class RegisterForm(UserDataForm):
             if p1 != p2:
                 raise forms.ValidationError(PASSWORDS_DONT_MATCH)
             password_validator(p1)
+
+        return cleaned_data
+
+
+class UpdateUserForm(UserDataForm):
+    """Form for updating user profile information."""
+
+    class Meta:
+        model = User
+        fields = [
+            "first_name",
+            "last_name",
+            "phone",
+        ]
+
+    def clean(self) -> dict:
+        """Validate the form as a whole.
+
+        Returns:
+            dict: The cleaned form data.
+        """
+        cleaned_data = super().clean()
 
         return cleaned_data

@@ -2,17 +2,25 @@ from urllib.parse import quote
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.template.loader import render_to_string
 
 import graphene
+from graphql_jwt.decorators import login_required
 from graphql_jwt.shortcuts import get_token
 from premailer import transform
 
-from apps.accounts.forms import RegisterForm
+from apps.accounts.forms import RegisterForm, UpdateUserForm
+from apps.accounts.schema.types import UserType
 from apps.accounts.utils import generate_verification_token, verify_token
+from apps.accounts.validators import password_validator
 from apps.core.messages import (
+    CURRENT_PASSWORD_INCORRECT,
     EMAIL_ALREADY_REGISTERED,
     EMAIL_VERIFIED,
+    PASSWORD_UPDATED,
+    PASSWORDS_DONT_MATCH,
+    USER_DATA_UPDATED,
     USER_NOT_FOUND,
     VERIFICATION_TOKEN_INVALID_OR_EXPIRED,
 )
@@ -159,3 +167,109 @@ class VerifyEmail(graphene.Mutation):
             return VerifyEmail(
                 success=False, message=VERIFICATION_TOKEN_INVALID_OR_EXPIRED, token=None
             )
+
+
+class UpdateUser(graphene.Mutation):
+    """Mutation to update a user's profile information.
+
+    Updates the authenticated user's profile with the provided information.
+    """
+
+    class Arguments(UserDataArguments):
+        """Arguments for the UpdateUser mutation."""
+
+        pass
+
+    success = graphene.Boolean()
+    message = graphene.String()
+    user = graphene.Field(UserType)
+
+    @login_required
+    def mutate(self, info, **kwargs) -> "UpdateUser":
+        """Update the authenticated user's profile information.
+
+        Args:
+            info: GraphQL execution info.
+            **kwargs: User profile data to update.
+
+        Returns:
+            UpdateUser: Mutation result with success status, message, and updated user.
+        """
+        user = info.context.user
+        form = UpdateUserForm(kwargs, instance=user)
+        if form.is_valid():
+            updated_user = form.save()
+
+            return UpdateUser(
+                success=True,
+                message=USER_DATA_UPDATED,
+                user=updated_user,
+            )
+        else:
+            errors = form.errors.get_json_data()
+            messages = []
+            for field, field_errors in errors.items():
+                for err in field_errors:
+                    messages.append(err["message"])
+
+            return UpdateUser(success=False, message="\n".join(messages), user=None)
+
+
+class ChangePassword(graphene.Mutation):
+    """Mutation to change a user's password.
+
+    Validates the current password and updates it with a new one if valid.
+    """
+
+    class Arguments:
+        """Arguments for the ChangePassword mutation."""
+
+        current_password = graphene.String(required=True)
+        password1 = graphene.String(required=True)
+        password2 = graphene.String(required=True)
+
+    success = graphene.Boolean()
+    message = graphene.String()
+
+    @login_required
+    def mutate(self, info, current_password, password1, password2) -> "ChangePassword":
+        """Change the authenticated user's password.
+
+        Args:
+            info: GraphQL execution info.
+            current_password: The user's current password for verification.
+            password1: The new password.
+            password2: Confirmation of the new password.
+
+        Returns:
+            ChangePassword: Mutation result with success status and message.
+        """
+        user = info.context.user
+
+        if not user.check_password(current_password):
+
+            return ChangePassword(success=False, message=CURRENT_PASSWORD_INCORRECT)
+
+        if password1 != password2:
+
+            return ChangePassword(success=False, message=PASSWORDS_DONT_MATCH)
+
+        try:
+            password_validator(password1)
+        except ValidationError as e:
+
+            return ChangePassword(success=False, message=str(e.messages[0]))
+
+        user.set_password(password1)
+        user.save()
+
+        return ChangePassword(success=True, message=PASSWORD_UPDATED)
+
+
+class AccountMutations(graphene.ObjectType):
+    """Root mutation group for account-related operations."""
+
+    register_user = RegisterUser.Field()
+    verify_email = VerifyEmail.Field()
+    update_user = UpdateUser.Field()
+    change_password = ChangePassword.Field()

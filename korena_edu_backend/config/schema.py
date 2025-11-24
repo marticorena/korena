@@ -1,6 +1,7 @@
 import graphene
 import graphql_jwt
 
+from apps.accounts.schema.mutations import AccountMutations
 from apps.accounts.schema.queries import AccountsQuery
 from apps.core.schema.queries import HealthQueries
 from apps.documents.schema.mutations import DocumentMutations
@@ -17,6 +18,7 @@ class Query(
 
 
 class Mutation(
+    AccountMutations,
     DocumentMutations,
     graphene.ObjectType,
 ):
