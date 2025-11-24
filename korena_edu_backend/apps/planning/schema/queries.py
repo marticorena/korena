@@ -1,9 +1,10 @@
 from typing import Any
 
 import graphene
+from graphql import GraphQLResolveInfo
+
 from apps.planning.models import PlanningSheet
 from apps.planning.schema.types import PlanningSheetType
-from graphql import GraphQLResolveInfo
 
 
 class PlanningQuery(graphene.ObjectType):

@@ -1,11 +1,13 @@
 from types import SimpleNamespace
 from typing import Any, Dict, Optional
 
-import pytest
-from config.schema import schema
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
+
 from graphene.test import Client as GrapheneClient
+import pytest
+
+from config.schema import schema
 
 User = get_user_model()
 

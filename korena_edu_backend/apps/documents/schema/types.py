@@ -1,8 +1,9 @@
 import graphene
+from graphene_django import DjangoObjectType
+
 from apps.documents.models import Document as DocumentModel
 from apps.documents.models import DocumentType as DocumentTypeModel
 from apps.documents.models import DocumentVersion as DocumentVersionModel
-from graphene_django import DjangoObjectType
 
 
 class DocumentTypeType(DjangoObjectType):

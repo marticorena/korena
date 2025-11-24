@@ -1,10 +1,12 @@
 from typing import Any
 
-import graphene
-from apps.core.schema.types import HealthStatusType
 from django.db import connection
+
 from django_redis import get_redis_connection
+import graphene
 from graphql import GraphQLResolveInfo
+
+from apps.core.schema.types import HealthStatusType
 
 
 class HealthQueries(graphene.ObjectType):

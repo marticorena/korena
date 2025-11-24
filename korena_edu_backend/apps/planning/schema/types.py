@@ -1,9 +1,10 @@
 from typing import Any
 
 import graphene
-from apps.planning.models import PlanningRow, PlanningSheet
 from graphene_django import DjangoObjectType
 from graphql import GraphQLResolveInfo
+
+from apps.planning.models import PlanningRow, PlanningSheet
 
 
 class PlanningRowType(DjangoObjectType):

@@ -1,10 +1,11 @@
 from typing import Optional
 
 import graphene
+from graphql import GraphQLError, GraphQLResolveInfo
+
 from apps.documents.models import Document as DocumentModel
 from apps.documents.models import DocumentLevel
 from apps.documents.schema.types import DocumentType
-from graphql import GraphQLError, GraphQLResolveInfo
 
 
 class DocumentQueries(graphene.ObjectType):

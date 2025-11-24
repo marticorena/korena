@@ -1,12 +1,13 @@
 from typing import Optional
 
 import graphene
-from apps.accounts.models import User
-from apps.accounts.schema.types import UserType
 from graphql import GraphQLResolveInfo
 
+from apps.accounts.models import User
+from apps.accounts.schema.types import UserType
 
-class Query(graphene.ObjectType):
+
+class AccountsQuery(graphene.ObjectType):
     """Root query class for user-related GraphQL operations."""
 
     me = graphene.Field(UserType)

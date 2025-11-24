@@ -1,10 +1,13 @@
 import logging
 
-from apps.core.metrics import emails_sent_total, track_celery_task
-from apps.notifications.models import EmailLog, EmailStatus
-from celery import shared_task
+from django.conf import settings
 from django.core.mail import send_mail
 from django.utils import timezone
+
+from celery import shared_task
+
+from apps.core.metrics import emails_sent_total, track_celery_task
+from apps.notifications.models import EmailLog, EmailStatus
 
 logger = logging.getLogger(__name__)
 
@@ -31,9 +34,10 @@ def send_email_task(self, email_log_id: int) -> None:
         # Send the email using Django's email backend
         send_mail(
             subject=log.subject,
-            message=log.body_snapshot,
-            from_email=None,  # Uses DEFAULT_FROM_EMAIL from settings
+            message=log.plain_message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[log.to_email],
+            html_message=log.html_message,
         )
 
         # Update success state

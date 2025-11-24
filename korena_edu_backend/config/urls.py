@@ -1,9 +1,11 @@
-from apps.core.metrics import metrics_view
-from config.schema import schema
 from django.contrib import admin
 from django.urls import path
 from django.views.decorators.csrf import csrf_exempt
+
 from graphene_file_upload.django import FileUploadGraphQLView
+
+from apps.core.metrics import metrics_view
+from config.schema import schema
 
 urlpatterns = [
     path("admin/", admin.site.urls),

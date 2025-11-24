@@ -1,9 +1,11 @@
 import graphene
 import graphql_jwt
-from apps.accounts.schema import Query as AccountsQuery
-from apps.documents.schema import DocumentMutations, DocumentQueries
-from apps.health.schema import HealthQueries
-from apps.planning.schema import PlanningQuery
+
+from apps.accounts.schema.queries import AccountsQuery
+from apps.core.schema.queries import HealthQueries
+from apps.documents.schema.mutations import DocumentMutations
+from apps.documents.schema.queries import DocumentQueries
+from apps.planning.schema.queries import PlanningQuery
 
 
 class Query(

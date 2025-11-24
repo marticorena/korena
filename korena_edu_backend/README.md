@@ -83,6 +83,22 @@ Install pre-commit hooks:
 
 ---
 
+## 8. Helpers
+
+Clean migrations:
+
+```bash
+  Get-ChildItem -Path .\apps -Recurse -Filter "*.py" | Where-Object { $_.Directory.Name -eq "migrations" -and $_.Name -ne "__init__.py" } | Remove-Item -Force
+```
+```bash
+  docker compose exec postgres psql -U korena -d postgres -v ON_ERROR_STOP=1 -c "\set AUTOCOMMIT on" -c "REVOKE CONNECT ON DATABASE korena FROM public;" -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='korena' AND pid <> pg_backend_pid();" -c "DROP DATABASE IF EXISTS korena;"
+```
+```bash
+  docker compose exec postgres psql -U korena -d postgres -c "CREATE DATABASE korena;"
+```
+
+---
+
 ## 9. Production deployment (summary)
 
 Deployment is performed via CI/CD using GitHub Actions and environment-specific `.env` files.

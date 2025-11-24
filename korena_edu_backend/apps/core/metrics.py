@@ -2,6 +2,7 @@ from time import perf_counter
 from typing import Any, Callable
 
 from django.http import HttpRequest, HttpResponse
+
 from prometheus_client import Counter, Histogram, generate_latest
 
 # ---------------------------------------------------------------------

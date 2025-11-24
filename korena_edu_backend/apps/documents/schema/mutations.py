@@ -1,6 +1,9 @@
 from typing import Optional
 
 import graphene
+from graphene_file_upload.scalars import Upload
+from graphql import GraphQLError, GraphQLResolveInfo
+
 from apps.core.metrics import (
     document_upload_duration_seconds,
     document_versions_uploaded_total,
@@ -11,8 +14,6 @@ from apps.documents.models import Document as DocumentModel
 from apps.documents.models import DocumentVersion as DocumentVersionModel
 from apps.documents.models import DocumentVersionStatus
 from apps.documents.schema.types import DocumentType, DocumentVersionType
-from graphene_file_upload.scalars import Upload
-from graphql import GraphQLError, GraphQLResolveInfo
 
 
 class UploadDocumentVersion(graphene.Mutation):
