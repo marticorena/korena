@@ -1,14 +1,26 @@
 from django.core.validators import RegexValidator
 
-from apps.core.messages import (
-    EMAIL_VALIDATOR_ERROR,
-    NAME_VALIDATOR_ERROR,
-    PASSWORD_VALIDATOR_ERROR,
+from apps.core.messages import ERROR_MESSAGES
+
+# Name must have at least 2 letters and only allowed characters.
+name_validator = RegexValidator(
+    regex=r"^[A-Za-zÁÉÍÓÚáéíóúÑñ ]{2,}$",
+    message=ERROR_MESSAGES["invalid"],  # fallback generic message
+    code="invalid",
 )
 
-name_validator = RegexValidator(r"^[A-Za-zÁÉÍÓÚáéíóúÑñ ]{2,}$", NAME_VALIDATOR_ERROR)
-email_validator = RegexValidator(r"^[\w\.\+-]+@[\w\.-]+\.\w+$", EMAIL_VALIDATOR_ERROR)
+
+# Basic email format validator.
+email_validator = RegexValidator(
+    regex=r"^[\w\.\+-]+@[\w\.-]+\.\w+$",
+    message=ERROR_MESSAGES["invalid"],  # fallback generic message
+    code="invalid",
+)
+
+
+# Password must have at least 8 chars, one digit and one symbol.
 password_validator = RegexValidator(
-    r"^(?=.*\d)(?=.*[!@#$%^&*()_+\-={}[\]:'\";<>?,./]).{8,}$",
-    PASSWORD_VALIDATOR_ERROR,
+    regex=r"^(?=.*\d)(?=.*[!@#$%^&*()_+\-={}[\]:'\";<>?,./]).{8,}$",
+    message=ERROR_MESSAGES["invalid"],  # fallback generic message
+    code="invalid",
 )

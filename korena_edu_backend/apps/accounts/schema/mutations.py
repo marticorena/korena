@@ -11,13 +11,7 @@ from apps.accounts.forms import RegisterForm, UpdateUserForm
 from apps.accounts.schema.types import UserType
 from apps.accounts.utils import generate_token_and_email, verify_token
 from apps.accounts.validators import password_validator
-from apps.core.messages import (
-    CURRENT_PASSWORD_INCORRECT,
-    PASSWORDS_DONT_MATCH,
-    USER_NOT_FOUND,
-    VALIDATION_ERROR,
-    VERIFICATION_TOKEN_INVALID_OR_EXPIRED,
-)
+from apps.core.messages import ERROR_MESSAGES
 from apps.core.schema.utils import build_form_errors
 from apps.notifications.tasks import send_email_task
 
@@ -25,14 +19,14 @@ User = get_user_model()
 
 
 class UserDataArguments:
-    """Common arguments for user-related mutations."""
+    """Common input arguments for user-related mutations."""
 
     first_name = graphene.String(required=True)
     last_name = graphene.String(required=True)
 
 
 class RegisterUser(graphene.Mutation):
-    """Registers a user and sends verification email."""
+    """Creates a new user and sends a verification email."""
 
     class Arguments(UserDataArguments):
         email = graphene.String(required=True)
@@ -42,7 +36,7 @@ class RegisterUser(graphene.Mutation):
     token = graphene.String()
 
     def mutate(self, info: graphene.ResolveInfo, **kwargs: Any) -> "RegisterUser":
-        """Register a new user.
+        """Register a user and trigger a verification email.
 
         Raises:
             GraphQLError: If validation fails.
@@ -52,7 +46,7 @@ class RegisterUser(graphene.Mutation):
         if not form.is_valid():
             errors = build_form_errors(form)
             raise GraphQLError(
-                VALIDATION_ERROR,
+                ERROR_MESSAGES["validation.error"],
                 extensions={"fields": errors},
             )
 
@@ -71,7 +65,7 @@ class RegisterUser(graphene.Mutation):
 
 
 class VerifyEmail(graphene.Mutation):
-    """Verifies email using token."""
+    """Verifies the user's email using a token."""
 
     class Arguments:
         token = graphene.String(required=True)
@@ -79,20 +73,20 @@ class VerifyEmail(graphene.Mutation):
     email = graphene.String()
 
     def mutate(self, info: graphene.ResolveInfo, token: str) -> "VerifyEmail":
-        """Verify email and activate user.
+        """Activate user account if the token is valid.
 
         Raises:
-            GraphQLError: If token invalid or user missing.
+            GraphQLError: If token is invalid or user not found.
         """
         email = verify_token(token)
 
         if not email:
-            raise GraphQLError(VERIFICATION_TOKEN_INVALID_OR_EXPIRED)
+            raise GraphQLError(ERROR_MESSAGES["auth.token_invalid"])
 
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:
-            raise GraphQLError(USER_NOT_FOUND)
+            raise GraphQLError(ERROR_MESSAGES["auth.user_not_found"])
 
         user.is_verified = True
         user.is_active = True
@@ -102,34 +96,33 @@ class VerifyEmail(graphene.Mutation):
 
 
 class UpdateUser(graphene.Mutation):
-    """Updates user profile information."""
+    """Updates the authenticated user's profile information."""
 
     class Arguments(UserDataArguments):
         pass
 
-    email = graphene.Field(UserType)
+    user = graphene.Field(UserType)
 
     @login_required
     def mutate(self, info: graphene.ResolveInfo, **kwargs: Any) -> "UpdateUser":
-        """Update authenticated user.
+        """Update the user's first and last name.
 
         Raises:
             GraphQLError: If validation fails.
         """
         user = info.context.user
-
         form = UpdateUserForm(kwargs, instance=user)
 
         if not form.is_valid():
             errors = build_form_errors(form)
             raise GraphQLError(
-                VALIDATION_ERROR,
+                ERROR_MESSAGES["validation.error"],
                 extensions={"fields": errors},
             )
 
         updated_user = form.save()
 
-        return UpdateUser(email=updated_user.email)
+        return UpdateUser(user=updated_user)
 
 
 class ChangePassword(graphene.Mutation):
@@ -150,7 +143,7 @@ class ChangePassword(graphene.Mutation):
         password1: str,
         password2: str,
     ) -> "ChangePassword":
-        """Change authenticated user's password.
+        """Update the user's password.
 
         Raises:
             GraphQLError: If validation fails.
@@ -158,15 +151,22 @@ class ChangePassword(graphene.Mutation):
         user = info.context.user
 
         if not user.check_password(current_password):
-            raise GraphQLError(CURRENT_PASSWORD_INCORRECT)
+            raise GraphQLError(ERROR_MESSAGES["auth.invalid_current_password"])
 
         if password1 != password2:
-            raise GraphQLError(PASSWORDS_DONT_MATCH)
+            raise GraphQLError(ERROR_MESSAGES["auth.password_mismatch"])
 
         try:
             password_validator(password1)
         except ValidationError as e:
-            message = e.messages[0] if e.messages else str(e)
+            # Map validator error code to a centralized message if available.
+            raw_message = e.messages[0] if e.messages else str(e)
+            code = getattr(e, "code", "invalid")
+            field_code_key = f"password1.{code}"
+            message = ERROR_MESSAGES.get(
+                field_code_key,
+                ERROR_MESSAGES.get(code, raw_message),
+            )
             raise GraphQLError(message)
 
         user.set_password(password1)
@@ -189,15 +189,15 @@ class DeleteAccount(graphene.Mutation):
         info: graphene.ResolveInfo,
         current_password: str,
     ) -> "DeleteAccount":
-        """Delete user account.
+        """Permanently delete the user account.
 
         Raises:
-            GraphQLError: If password incorrect.
+            GraphQLError: If password is incorrect.
         """
         user = info.context.user
 
         if not user.check_password(current_password):
-            raise GraphQLError(CURRENT_PASSWORD_INCORRECT)
+            raise GraphQLError(ERROR_MESSAGES["auth.invalid_current_password"])
 
         deleted_email = user.email
         user.delete()
@@ -206,7 +206,7 @@ class DeleteAccount(graphene.Mutation):
 
 
 class AccountMutations(graphene.ObjectType):
-    """Root mutation group."""
+    """Root mutation group for account-related operations."""
 
     register_user = RegisterUser.Field()
     verify_email = VerifyEmail.Field()
