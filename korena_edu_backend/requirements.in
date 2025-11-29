@@ -1,28 +1,28 @@
 # CORE DJANGO
-Django==5.1.3
-django-redis==5.4.0
+Django>=5.2,<5.3
+django-redis==6.0.0
 django-cors-headers==4.9.0
 
 # DATABASE
-psycopg2-binary==2.9.9
+psycopg2-binary==2.9.11
 
 # GRAPHQL
-graphene-django==3.2.2
+graphene-django==3.2.3
 django-graphql-jwt==0.4.0
 graphene-file-upload==1.3.0
 
 # TESTING
-pytest==8.3.3
-pytest-django==4.8.0
-pytest-cov==5.0.0
+pytest==9.0.1
+pytest-django==4.11.1
+pytest-cov==7.0.0
 
 # WEBSOCKETS (Channels)
-channels==4.1.0
-channels-redis==4.2.0
+channels==4.3.2
+channels-redis==4.3.0
 
 # CELERY + REDIS
-celery==5.4.0
-redis==5.0.7
+celery==5.5.3
+redis>=6.0,<8.0
 
 # UPLOADS / FILES
 Pillow==10.4.0
@@ -30,15 +30,15 @@ WeasyPrint==66.0
 
 # SECURITY / UTILITIES
 python-decouple==3.8
-bcrypt==4.2.0
-prometheus-client>=0.20,<0.21
+bcrypt==5.0.0
+prometheus-client>=0.23,<0.24
 premailer==3.10.0
 
 # DEVELOPMENT
-black==24.10.0
-isort==5.13.2
-ruff==0.7.0
-pre-commit==4.0.1
+black==25.11.0
+isort==7.0.0
+ruff==0.14.7
+pre-commit==4.5.0
 
 # ASGI SERVER
-daphne==4.1.0
+daphne>=4.1,<5.0
