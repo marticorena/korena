@@ -8,6 +8,7 @@ import graphql_jwt
 from graphql_jwt.decorators import login_required
 
 from apps.accounts.forms import ChangePasswordForm, RegisterForm, UpdateUserForm
+from apps.accounts.schema.decorators import verified_required
 from apps.accounts.schema.types import GetTokenType
 from apps.accounts.utils import generate_token_and_email, verify_token
 from apps.core.messages import ERROR_MESSAGES
@@ -18,8 +19,8 @@ User = get_user_model()
 
 
 class GetToken(graphene.Mutation):
-    """
-    Custom login mutation that replaces graphql_jwt.ObtainJSONWebToken.
+    """Custom login mutation that replaces graphql_jwt.ObtainJSONWebToken.
+
     Returns the same structure, but with custom error codes/messages.
     """
 
@@ -30,29 +31,38 @@ class GetToken(graphene.Mutation):
     Output = GetTokenType
 
     def mutate(
-        self, info: graphene.ResolveInfo, email: str, password: str
+        self,
+        info: graphene.ResolveInfo,
+        email: str,
+        password: str,
     ) -> GetTokenType:
-        """Authenticate user and return JWT + refresh token."""
+        """Authenticate user and return JWT + refresh token.
+
+        Raises:
+            GraphQLError: If credentials are invalid, user inactive or not verified.
+
+        Returns:
+            GetTokenType: Access token and refresh token.
+        """
         user = authenticate(email=email, password=password)
 
         if not user:
-            # Custom error message
             raise GraphQLError(ERROR_MESSAGES["auth.invalid_credentials"])
 
         if not user.is_active:
             raise GraphQLError(ERROR_MESSAGES["auth.not_authenticated"])
 
-        # Generate JWT tokens using graphql_jwt util
+        if not getattr(user, "is_verified", False):
+            raise GraphQLError(ERROR_MESSAGES["auth.not_verified"])
+
         payload = graphql_jwt.utils.jwt_payload(user)
         token = graphql_jwt.utils.jwt_encode(payload)
 
-        # Refresh token (graphene-jwt internal)
         refresh_token_obj = (
             graphql_jwt.refresh_token.models.RefreshToken.objects.create(user=user)
         )
         refresh_token = refresh_token_obj.get_token()
 
-        # Return data matching EXACT graphql-jwt shape
         return GetTokenType(
             token=token,
             refreshToken=refresh_token,
@@ -145,6 +155,7 @@ class UpdateUser(graphene.Mutation):
     email = graphene.String()
 
     @login_required
+    @verified_required
     def mutate(self, info: graphene.ResolveInfo, **kwargs: Any) -> "UpdateUser":
         """Update the user's first and last name.
 
@@ -177,6 +188,7 @@ class ChangePassword(graphene.Mutation):
     email = graphene.String()
 
     @login_required
+    @verified_required
     def mutate(
         self,
         info: graphene.ResolveInfo,
@@ -225,6 +237,7 @@ class DeleteAccount(graphene.Mutation):
     email = graphene.String()
 
     @login_required
+    @verified_required
     def mutate(
         self,
         info: graphene.ResolveInfo,

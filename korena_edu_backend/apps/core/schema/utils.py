@@ -30,3 +30,16 @@ def build_form_errors(form) -> List[Dict[str, Any]]:
             )
 
     return result
+
+
+def assert_field_error(fields: List[Dict[str, Any]], field: str, code: str) -> None:
+    """Assert that a field error with the given code exists.
+
+    Args:
+        fields: List of field error dicts.
+        field: Expected field name.
+        code: Expected error code.
+    """
+    assert any(
+        item.get("field") == field and item.get("code") == code for item in fields
+    ), f"Expected error for field '{field}' with code '{code}' not found. Got: {fields}"

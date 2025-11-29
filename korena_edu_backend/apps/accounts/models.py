@@ -33,7 +33,6 @@ class UserManager(BaseUserManager):
             raise ValueError("Users must have an email address.")
 
         email = self.normalize_email(email)
-        extra_fields.setdefault("is_active", True)
 
         user: User = self.model(email=email, **extra_fields)
         user.set_password(password)

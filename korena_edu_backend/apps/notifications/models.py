@@ -52,6 +52,6 @@ class EmailLog(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self) -> str:
-        """Return a readable representation of the sent email log."""
+        """Return a readable representation of the email log sent."""
 
         return f"{self.to_email} - {self.subject} [{self.status}]"

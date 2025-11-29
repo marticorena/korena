@@ -1,8 +1,9 @@
 from types import SimpleNamespace
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
+from django.test import Client as DjangoClient
 
 from graphene.test import Client as GrapheneClient
 import pytest
@@ -25,7 +26,7 @@ def gql_client() -> GrapheneClient:
 
 
 @pytest.fixture
-def user(db) -> User:
+def non_verified_user(db) -> User:
     """Create and return a regular, inactive-but-usable user.
 
     Args:
@@ -35,10 +36,10 @@ def user(db) -> User:
         User: A user instance.
     """
     u = User.objects.create_user(
-        email="user@example.com",
+        email="non-verified@example.com",
         password="P4ss-w0rd!",
-        first_name="Jane",
-        last_name="Doe",
+        first_name="Non",
+        last_name="Verified",
     )
 
     return u
@@ -57,8 +58,8 @@ def verified_user(db) -> User:
     u = User.objects.create_user(
         email="verified@example.com",
         password="P4ss-w0rd!",
-        first_name="Veri",
-        last_name="Fied",
+        first_name="Yes",
+        last_name="Verified",
     )
     u.is_active = True
     u.is_verified = True
@@ -100,7 +101,7 @@ def anon_context() -> SimpleNamespace:
 
 
 @pytest.fixture
-def auth_context(user: User) -> SimpleNamespace:
+def non_verified_context(non_verified_user: User) -> SimpleNamespace:
     """Return a GraphQL context with an authenticated user.
 
     Args:
@@ -109,7 +110,7 @@ def auth_context(user: User) -> SimpleNamespace:
     Returns:
         SimpleNamespace: Context with the provided user.
     """
-    ctx = SimpleNamespace(user=user)
+    ctx = SimpleNamespace(user=non_verified_user)
 
     return ctx
 
@@ -130,7 +131,7 @@ def verified_context(verified_user: User) -> SimpleNamespace:
 
 
 @pytest.fixture
-def admin_client_logged(client, superuser):
+def admin_client_logged(client: DjangoClient, superuser: User) -> DjangoClient:
     """Return a Django test client authenticated as superuser.
 
     Args:
@@ -138,7 +139,7 @@ def admin_client_logged(client, superuser):
         superuser: Superuser instance.
 
     Returns:
-        Client: Authenticated client.
+        DjangoClient: Authenticated client.
     """
     client.force_login(superuser)
 
@@ -146,21 +147,23 @@ def admin_client_logged(client, superuser):
 
 
 @pytest.fixture
-def exec_gql(gql_client: GrapheneClient):
+def exec_gql(
+    gql_client: GrapheneClient,
+) -> Callable[[str, Optional[Dict[str, Any]], Optional[Any]], Dict[str, Any]]:
     """Return a helper to execute GraphQL with variables and context.
 
     Args:
         gql_client: The Graphene client.
 
     Returns:
-        callable: Function(query: str, variables: dict | None, context: Any | None) -> dict
+        Callable: Function(query: str, variables: dict | None, context: Any | None) -> dict.
     """
 
     def _exec(
         query: str,
         variables: Optional[Dict[str, Any]] = None,
         context: Optional[Any] = None,
-    ) -> dict:
+    ) -> Dict[str, Any]:
         """Execute a GraphQL operation via Graphene test client.
 
         Args:
@@ -169,13 +172,15 @@ def exec_gql(gql_client: GrapheneClient):
             context: Optional context; if None, an anonymous context is used.
 
         Returns:
-            dict: Execution result as a dict with "data" and optional "errors".
+            Dict[str, Any]: Execution result as a dict with "data" and optional "errors".
         """
         if context is None:
             context = SimpleNamespace(user=AnonymousUser())
 
         result = gql_client.execute(
-            query, variables=variables or {}, context_value=context
+            query,
+            variables=variables or {},
+            context_value=context,
         )
 
         if result and result.get("errors"):

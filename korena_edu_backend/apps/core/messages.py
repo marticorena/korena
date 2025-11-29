@@ -30,10 +30,10 @@ FORM_CODE_ERROR_MESSAGES: Dict[str, str] = {
 AUTH_ERROR_MESSAGES: Dict[str, str] = {
     "auth.invalid_credentials": "Credenciales inválidas.",
     "auth.not_authenticated": "No autenticado.",
+    "auth.not_verified": "No verificado..",
     "auth.invalid_current_password": "La contraseña actual es incorrecta.",
     "auth.user_not_found": "Usuario no encontrado.",
     "auth.token_invalid": "Token inválido o expirado.",
-    "auth.password_mismatch": "Las contraseñas no coinciden.",
 }
 
 # Upload / files domain errors: "upload.code" → text

@@ -81,26 +81,3 @@ def verify_token(token: str, max_age=60 * 60 * 24) -> str:  # 24 hours
     except (BadSignature, SignatureExpired):
 
         return None
-
-
-def update_user_from_form(form) -> User:
-    """Update a user based on a validated form.
-
-    Args:
-        form: A validated form containing user data.
-
-    Returns:
-        User: The updated user instance.
-
-    Note:
-        Assumes the form is already validated.
-    """
-    user = form.instance
-    for field in [
-        "first_name",
-        "last_name",
-    ]:
-        setattr(user, field, form.cleaned_data[field])
-    user.save()
-
-    return user

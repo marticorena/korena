@@ -28,11 +28,3 @@ def create_celery_app() -> Celery:
 
 
 app = create_celery_app()
-
-
-@app.task(bind=True)
-def debug_task(self):
-    """
-    Simple debug task to verify Celery functionality.
-    """
-    print(f"Request: {self.request!r}")
