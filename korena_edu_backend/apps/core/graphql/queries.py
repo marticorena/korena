@@ -1,30 +1,20 @@
-from typing import Any
-
 from django.db import connection
 
 from django_redis import get_redis_connection
-import graphene
-from graphql import GraphQLResolveInfo
+import strawberry
+from strawberry.types import Info
 
-from apps.core.schema.types import HealthStatusType
+from apps.core.graphql.types import HealthStatusType
 
 
-class HealthQueries(graphene.ObjectType):
+@strawberry.type
+class HealthQueries:
     """GraphQL health and readiness probes."""
 
-    healthz = graphene.Field(
-        HealthStatusType,
-        description="Liveness probe.",
-    )
-    readyz = graphene.Field(
-        HealthStatusType,
-        description="Readiness probe.",
-    )
-
-    def resolve_healthz(
-        self, info: GraphQLResolveInfo, **kwargs: Any
-    ) -> HealthStatusType:
+    @strawberry.field(description="Liveness probe.")
+    def healthz(self, info: Info) -> HealthStatusType:
         """Liveness probe: app is running."""
+
         return HealthStatusType(
             status="ok",
             db_ok=None,
@@ -32,13 +22,12 @@ class HealthQueries(graphene.ObjectType):
             details="Service is alive",
         )
 
-    def resolve_readyz(
-        self, info: GraphQLResolveInfo, **kwargs: Any
-    ) -> HealthStatusType:
+    @strawberry.field(description="Readiness probe.")
+    def readyz(self, info: Info) -> HealthStatusType:
         """Readiness: DB + Redis must be ready."""
-        errors = []
 
-        # DB check
+        errors: list[str] = []
+
         try:
             with connection.cursor() as cursor:
                 cursor.execute("SELECT 1;")
@@ -48,7 +37,6 @@ class HealthQueries(graphene.ObjectType):
             db_ok = False
             errors.append(f"DB error: {exc}")
 
-        # Redis check
         try:
             redis_conn = get_redis_connection("default")
             redis_conn.ping()

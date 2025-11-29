@@ -44,30 +44,31 @@ query Document($id: ID!) {
 }
 """
 
-UPLOAD_DOCUMENT_VERSION_MUTATION = """
-mutation UploadDocumentVersion($documentId: ID!, $file: Upload!) {
-  uploadDocumentVersion(documentId: $documentId, file: $file) {
-    documentVersion {
-      id
-      status
-      source
-      createdAt
-      createdBy {
-        id
-        email
-      }
-    }
+CREATE_DOCUMENT_MUTATION = """
+mutation CreateDocument(
+  $documentTypeCode: String!
+  $title: String
+  $description: String
+  $schoolId: ID
+) {
+  createDocument(
+    documentTypeCode: $documentTypeCode
+    title: $title
+    description: $description
+    schoolId: $schoolId
+  ) {
     document {
       id
       title
-      currentVersion {
-        id
-        status
-      }
+      description
       type {
         id
+        code
         level
       }
+      isArchived
+      createdAt
+      updatedAt
     }
   }
 }

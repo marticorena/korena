@@ -1,5 +1,6 @@
+from contextlib import contextmanager
 from time import perf_counter
-from typing import Any, Callable
+from typing import Callable
 
 from django.http import HttpRequest, HttpResponse
 
@@ -106,43 +107,36 @@ ai_recommendation_queries_total = Counter(
 )
 
 
-def track_graphql_operation(operation_name: str) -> Callable:
-    """Decorator to track GraphQL operation durations.
+@contextmanager
+def track_graphql_operation(operation_name: str):
+    """Context manager to track GraphQL operation duration.
 
     Args:
-        operation_name (str): Name of the GraphQL operation.
-
-    Returns:
-        Callable: wrapped resolver.
+        operation_name: Logical name of the GraphQL operation.
     """
-
-    def decorator(func: Callable) -> Callable:
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            start = perf_counter()
-            try:
-                return func(*args, **kwargs)
-            finally:
-                duration = perf_counter() - start
-                graphql_request_duration_seconds.labels(
-                    operation=operation_name
-                ).observe(duration)
-
-        return wrapper
-
-    return decorator
+    start = perf_counter()
+    try:
+        yield
+    finally:
+        duration = perf_counter() - start
+        graphql_request_duration_seconds.labels(
+            operation=operation_name,
+        ).observe(duration)
 
 
 def track_celery_task(task_name: str) -> Callable:
     """Decorator to track Celery task execution success/failure."""
 
     def decorator(func: Callable) -> Callable:
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
+        def wrapper(*args, **kwargs):
             try:
                 result = func(*args, **kwargs)
                 celery_tasks_total.labels(task_name=task_name, status="success").inc()
+
                 return result
             except Exception:
                 celery_tasks_total.labels(task_name=task_name, status="failed").inc()
+
                 raise
 
         return wrapper
@@ -153,6 +147,7 @@ def track_celery_task(task_name: str) -> Callable:
 def metrics_view(_request: HttpRequest) -> HttpResponse:
     """Expose Prometheus metrics endpoint."""
     data = generate_latest()
+
     return HttpResponse(
         data,
         content_type="text/plain; version=0.0.4; charset=utf-8",

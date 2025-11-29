@@ -1,32 +1,30 @@
-import graphene
-import graphql_jwt
+import strawberry
 
-from apps.accounts.schema.mutations import AccountMutations, GetToken
-from apps.accounts.schema.queries import AccountsQuery
-from apps.core.schema.queries import HealthQueries
-from apps.documents.schema.mutations import DocumentMutations
-from apps.documents.schema.queries import DocumentQueries
-from apps.planning.schema.queries import PlanningQuery
+from apps.accounts.graphql.mutations import AccountMutations
+from apps.accounts.graphql.queries import AccountsQuery
+from apps.core.graphql.extensions import get_default_extensions
+from apps.core.graphql.queries import HealthQueries
+from apps.documents.graphql.mutations import DocumentMutations
+from apps.documents.graphql.queries import DocumentQueries
+from apps.planning.graphql.queries import PlanningQuery
 
 
-class Query(
-    AccountsQuery, PlanningQuery, DocumentQueries, HealthQueries, graphene.ObjectType
-):
+@strawberry.type
+class Query(AccountsQuery, PlanningQuery, DocumentQueries, HealthQueries):
     """Root query combining all app-level queries."""
 
     pass
 
 
-class Mutation(
-    AccountMutations,
-    DocumentMutations,
-    graphene.ObjectType,
-):
+@strawberry.type
+class Mutation(AccountMutations, DocumentMutations):
     """Root mutation combining all app-level mutations."""
 
-    get_token = GetToken.Field()
-    verify_token = graphql_jwt.Verify.Field()
-    refresh_token = graphql_jwt.Refresh.Field()
+    pass
 
 
-schema = graphene.Schema(query=Query, mutation=Mutation)
+schema = strawberry.Schema(
+    query=Query,
+    mutation=Mutation,
+    extensions=get_default_extensions(),
+)

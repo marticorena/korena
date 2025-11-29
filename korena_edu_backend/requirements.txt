@@ -13,6 +13,7 @@ asgiref==3.11.0
     #   daphne
     #   django
     #   django-cors-headers
+    #   strawberry-graphql-django
 attrs==25.4.0
     # via
     #   service-identity
@@ -90,38 +91,26 @@ django==5.2.8
     #   -r requirements.in
     #   channels
     #   django-cors-headers
-    #   django-graphql-jwt
     #   django-redis
-    #   graphene-django
+    #   djangorestframework
+    #   djangorestframework-simplejwt
+    #   strawberry-graphql-django
 django-cors-headers==4.9.0
     # via -r requirements.in
-django-graphql-jwt==0.4.0
-    # via -r requirements.in
 django-redis==6.0.0
+    # via -r requirements.in
+djangorestframework==3.15.2
+    # via
+    #   -r requirements.in
+    #   djangorestframework-simplejwt
+djangorestframework-simplejwt==5.5.1
     # via -r requirements.in
 filelock==3.20.0
     # via virtualenv
 fonttools[woff]==4.60.1
     # via weasyprint
-graphene==3.4.3
-    # via
-    #   django-graphql-jwt
-    #   graphene-django
-graphene-django==3.2.3
-    # via
-    #   -r requirements.in
-    #   django-graphql-jwt
-graphene-file-upload==1.3.0
-    # via -r requirements.in
 graphql-core==3.2.7
-    # via
-    #   graphene
-    #   graphene-django
-    #   graphql-relay
-graphql-relay==3.2.0
-    # via
-    #   graphene
-    #   graphene-django
+    # via strawberry-graphql
 hyperlink==21.0.0
     # via
     #   autobahn
@@ -141,6 +130,8 @@ isort==7.0.0
     # via -r requirements.in
 kombu==5.5.4
     # via celery
+lia-web==0.2.3
+    # via strawberry-graphql
 lxml==6.0.2
     # via premailer
 more-itertools==10.8.0
@@ -156,6 +147,7 @@ packaging==25.0
     #   black
     #   kombu
     #   pytest
+    #   strawberry-graphql
 pathspec==0.12.1
     # via black
 pillow==10.4.0
@@ -176,8 +168,6 @@ premailer==3.10.0
     # via -r requirements.in
 prometheus-client==0.23.1
     # via -r requirements.in
-promise==2.3
-    # via graphene-django
 prompt-toolkit==3.0.52
     # via click-repl
 psycopg2-binary==2.9.11
@@ -195,7 +185,7 @@ pydyf==0.11.0
 pygments==2.19.2
     # via pytest
 pyjwt==2.10.1
-    # via django-graphql-jwt
+    # via djangorestframework-simplejwt
 pyopenssl==25.3.0
     # via twisted
 pyphen==0.17.2
@@ -212,7 +202,7 @@ pytest-django==4.11.1
 python-dateutil==2.9.0.post0
     # via
     #   celery
-    #   graphene
+    #   strawberry-graphql
 python-decouple==3.8
     # via -r requirements.in
 pytokens==0.3.0
@@ -231,14 +221,15 @@ ruff==0.14.7
 service-identity==24.2.0
     # via twisted
 six==1.17.0
-    # via
-    #   graphene-file-upload
-    #   promise
-    #   python-dateutil
+    # via python-dateutil
 sqlparse==0.5.3
     # via django
-text-unidecode==1.3
-    # via graphene-django
+strawberry-graphql==0.287.0
+    # via
+    #   -r requirements.in
+    #   strawberry-graphql-django
+strawberry-graphql-django==0.67.2
+    # via -r requirements.in
 tinycss2==1.5.0
     # via
     #   cssselect2
@@ -251,8 +242,9 @@ txaio==25.9.2
     # via autobahn
 typing-extensions==4.15.0
     # via
-    #   graphene
+    #   lia-web
     #   pyopenssl
+    #   strawberry-graphql
     #   twisted
 tzdata==2025.2
     # via

@@ -1,9 +1,11 @@
 from typing import Any, Dict, List
 
+from django.forms import Form
+
 from apps.core.messages import ERROR_MESSAGES
 
 
-def build_form_errors(form) -> List[Dict[str, Any]]:
+def build_form_errors(form: Form) -> List[Dict[str, Any]]:
     """Convert Django form errors into a structured list for GraphQL."""
     json_errors = form.errors.get_json_data()
     result = []

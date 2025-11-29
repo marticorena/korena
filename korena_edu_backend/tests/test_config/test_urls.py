@@ -1,7 +1,7 @@
 from django.test import Client
 from django.urls import resolve
 
-from graphene_file_upload.django import FileUploadGraphQLView
+from graphene_django.views import GraphQLView
 import pytest
 
 from apps.core.metrics import metrics_view
@@ -9,13 +9,13 @@ from apps.core.metrics import metrics_view
 pytestmark = pytest.mark.django_db
 
 
-def test_graphql_url_resolves_to_file_upload_view() -> None:
-    """The /graphql/ URL should be wired to FileUploadGraphQLView."""
+def test_graphql_url_resolves_to_graphql_view() -> None:
+    """The /graphql/ URL should be wired to GraphQLView."""
     match = resolve("/graphql/")
 
     # When using .as_view(), Django sets view_class on the resolved func.
     assert hasattr(match.func, "view_class")
-    assert match.func.view_class is FileUploadGraphQLView
+    assert match.func.view_class is GraphQLView
 
 
 def test_metrics_url_resolves_to_metrics_view() -> None:
