@@ -5,7 +5,8 @@ from django.db import models
 from django.utils import timezone
 
 if TYPE_CHECKING:
-    pass
+    from apps.accounts.models import User  # noqa: F401
+    from apps.schools.models import School  # noqa: F401
 
 
 class DocumentLevel(models.TextChoices):
@@ -35,10 +36,15 @@ class DocumentType(models.Model):
     is_official = models.BooleanField(default=False)
     minedu_reference = models.CharField(max_length=200, blank=True)
 
+    class Meta:
+        verbose_name = "Document type"
+        verbose_name_plural = "Document types"
+        ordering = ["level", "name"]
+
     def __str__(self) -> str:
         """Return a readable representation of the document type."""
 
-        return f"{self.name} ({self.level})"
+        return f"{self.name} ({self.get_level_display()})"
 
 
 class Document(models.Model):

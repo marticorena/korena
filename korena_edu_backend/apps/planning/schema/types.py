@@ -54,4 +54,5 @@ class PlanningSheetType(DjangoObjectType):
         Returns:
             list[PlanningRow]: Ordered list of rows.
         """
+
         return list(self.rows.all())

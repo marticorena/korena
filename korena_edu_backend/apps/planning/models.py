@@ -47,6 +47,9 @@ class PlanningSheet(models.Model):
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        ordering = ["-created_at"]
+
     def __str__(self) -> str:
         """Return the planning sheet title as its string representation."""
 

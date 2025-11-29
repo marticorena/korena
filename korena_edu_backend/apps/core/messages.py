@@ -30,7 +30,7 @@ FORM_CODE_ERROR_MESSAGES: Dict[str, str] = {
 AUTH_ERROR_MESSAGES: Dict[str, str] = {
     "auth.invalid_credentials": "Credenciales inválidas.",
     "auth.not_authenticated": "No autenticado.",
-    "auth.not_verified": "No verificado..",
+    "auth.not_verified": "Cuenta no verificada.",
     "auth.invalid_current_password": "La contraseña actual es incorrecta.",
     "auth.user_not_found": "Usuario no encontrado.",
     "auth.token_invalid": "Token inválido o expirado.",
@@ -41,6 +41,12 @@ UPLOAD_ERROR_MESSAGES: Dict[str, str] = {
     "upload.no_file": "El archivo no se recibió correctamente.",
     "upload.invalid_format": "Formato no permitido. Solo JPG, PNG o PDF.",
     "upload.file_too_large": "El archivo es demasiado grande. Máximo {max_size} MB.",
+}
+
+# Documents domain errors: "documents.code" → text
+DOCUMENT_ERROR_MESSAGES: Dict[str, str] = {
+    "documents.invalid_level": "El nivel de documento proporcionado no es válido.",
+    "documents.not_found_or_not_owned": "Documento no encontrado o no te pertenece.",
 }
 
 # Generic / shared messages: "domain.code" → text
@@ -54,5 +60,6 @@ ERROR_MESSAGES: Dict[str, str] = {
     **FORM_CODE_ERROR_MESSAGES,
     **AUTH_ERROR_MESSAGES,
     **UPLOAD_ERROR_MESSAGES,
+    **DOCUMENT_ERROR_MESSAGES,
     **GENERIC_ERROR_MESSAGES,
 }

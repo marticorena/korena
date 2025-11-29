@@ -2,7 +2,9 @@ from typing import Any
 
 import graphene
 from graphql import GraphQLResolveInfo
+from graphql_jwt.decorators import login_required
 
+from apps.accounts.schema.decorators import verified_required
 from apps.planning.models import PlanningSheet
 from apps.planning.schema.types import PlanningSheetType
 
@@ -15,6 +17,8 @@ class PlanningQuery(graphene.ObjectType):
         description="Return all planning sheets created by the authenticated user.",
     )
 
+    @login_required
+    @verified_required
     def resolve_my_planning_sheets(
         self,
         info: GraphQLResolveInfo,
@@ -27,12 +31,9 @@ class PlanningQuery(graphene.ObjectType):
             **kwargs: Additional arguments (unused).
 
         Returns:
-            list[PlanningSheet]: User-owned planning sheets or an empty list.
+            list[PlanningSheet]: User-owned planning sheets.
         """
         user = info.context.user
-
-        if user.is_anonymous:
-            return []
 
         queryset = PlanningSheet.objects.filter(owner=user)
 

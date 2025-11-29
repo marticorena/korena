@@ -2,7 +2,10 @@ from typing import Optional
 
 import graphene
 from graphql import GraphQLError, GraphQLResolveInfo
+from graphql_jwt.decorators import login_required
 
+from apps.accounts.schema.decorators import verified_required
+from apps.core.messages import ERROR_MESSAGES
 from apps.documents.models import Document as DocumentModel
 from apps.documents.models import DocumentLevel
 from apps.documents.schema.types import DocumentType
@@ -16,7 +19,9 @@ class DocumentQueries(graphene.ObjectType):
         level=graphene.Argument(
             graphene.String,
             required=False,
-            description="Filtrar por nivel de documento (STATE, SCHOOL, TEACHER, CLASSROOM).",
+            description=(
+                "Filtrar por nivel de documento (STATE, SCHOOL, TEACHER, CLASSROOM)."
+            ),
         ),
     )
     document = graphene.Field(
@@ -24,6 +29,8 @@ class DocumentQueries(graphene.ObjectType):
         id=graphene.ID(required=True),
     )
 
+    @login_required
+    @verified_required
     def resolve_my_documents(
         self,
         info: GraphQLResolveInfo,
@@ -38,25 +45,25 @@ class DocumentQueries(graphene.ObjectType):
             **kwargs: Additional resolver arguments.
 
         Raises:
-            GraphQLError: If the user is not authenticated.
+            GraphQLError: If level is invalid.
 
         Returns:
             list[DocumentModel]: Documents owned by the current user.
         """
         user = info.context.user
-        if user.is_anonymous:
-            raise GraphQLError("Debes iniciar sesión para ver tus documentos.")
 
         queryset = DocumentModel.objects.filter(owner=user, is_archived=False)
 
         if level:
             if level not in DocumentLevel.values:
-                raise GraphQLError("El nivel de documento proporcionado no es válido.")
+                raise GraphQLError(ERROR_MESSAGES["documents.invalid_level"])
 
             queryset = queryset.filter(type__level=level)
 
         return list(queryset)
 
+    @login_required
+    @verified_required
     def resolve_document(
         self,
         info: GraphQLResolveInfo,
@@ -71,18 +78,18 @@ class DocumentQueries(graphene.ObjectType):
             **kwargs: Additional resolver arguments.
 
         Raises:
-            GraphQLError: If the user is not authenticated.
+            GraphQLError: If document does not exist or is not owned by the user.
 
         Returns:
-            Optional[DocumentModel]: The document if it exists and belongs to the user.
+            Optional[DocumentModel]: The requested document.
         """
         user = info.context.user
-        if user.is_anonymous:
-            raise GraphQLError("Debes iniciar sesión para ver este documento.")
 
         try:
             document = DocumentModel.objects.get(pk=id, owner=user, is_archived=False)
-        except DocumentModel.DoesNotExist:
-            return None
+        except DocumentModel.DoesNotExist as exc:
+            raise GraphQLError(
+                ERROR_MESSAGES["documents.not_found_or_not_owned"]
+            ) from exc
 
         return document
