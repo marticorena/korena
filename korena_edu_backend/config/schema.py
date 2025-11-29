@@ -1,7 +1,7 @@
 import graphene
 import graphql_jwt
 
-from apps.accounts.schema.mutations import AccountMutations
+from apps.accounts.schema.mutations import AccountMutations, GetToken
 from apps.accounts.schema.queries import AccountsQuery
 from apps.core.schema.queries import HealthQueries
 from apps.documents.schema.mutations import DocumentMutations
@@ -24,7 +24,7 @@ class Mutation(
 ):
     """Root mutation combining all app-level mutations."""
 
-    token_auth = graphql_jwt.ObtainJSONWebToken.Field()
+    get_token = GetToken.Field()
     verify_token = graphql_jwt.Verify.Field()
     refresh_token = graphql_jwt.Refresh.Field()
 

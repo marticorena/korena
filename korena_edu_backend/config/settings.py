@@ -10,10 +10,7 @@ from decouple import Csv, config
 # Build paths inside the project
 BASE_DIR: Path = Path(__file__).resolve().parent.parent
 
-# -------------------------------------------------------------------
 # CORE SETTINGS
-# -------------------------------------------------------------------
-
 SECRET_KEY = config("SECRET_KEY", default="change-me")
 DEBUG = config("DEBUG", cast=bool, default=False)
 ALLOWED_HOSTS = config("ALLOWED_HOSTS", cast=Csv(), default="*")
@@ -22,10 +19,7 @@ CORS_ALLOWED_ORIGINS = config("CORS_ALLOWED_ORIGINS", default="").split(",")
 CORS_ALLOW_CREDENTIALS = True
 CORS_EXPOSE_HEADERS = ["Content-Disposition"]
 
-# -------------------------------------------------------------------
 # INSTALLED APPS
-# -------------------------------------------------------------------
-
 INSTALLED_APPS = [
     # Django core
     "django.contrib.admin",
@@ -53,11 +47,7 @@ INSTALLED_APPS = [
 
 AUTH_USER_MODEL = "accounts.User"
 
-
-# -------------------------------------------------------------------
 # MIDDLEWARE
-# -------------------------------------------------------------------
-
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
@@ -73,11 +63,7 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "config.urls"
 
-
-# -------------------------------------------------------------------
 # TEMPLATES
-# -------------------------------------------------------------------
-
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
@@ -94,11 +80,7 @@ TEMPLATES = [
     },
 ]
 
-
-# -------------------------------------------------------------------
 # ASGI / CHANNELS
-# -------------------------------------------------------------------
-
 ASGI_APPLICATION = "config.asgi.application"
 
 CHANNEL_LAYERS = {
@@ -110,11 +92,7 @@ CHANNEL_LAYERS = {
     }
 }
 
-
-# -------------------------------------------------------------------
 # DATABASE
-# -------------------------------------------------------------------
-
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
@@ -126,11 +104,7 @@ DATABASES = {
     }
 }
 
-
-# -------------------------------------------------------------------
 # CELERY
-# -------------------------------------------------------------------
-
 CELERY_BROKER_URL = config("CELERY_BROKER_URL", default="redis://redis:6379/0")
 CELERY_RESULT_BACKEND = config("CELERY_RESULT_BACKEND", default="redis://redis:6379/1")
 CELERY_TIMEZONE = "America/Lima"
@@ -144,11 +118,7 @@ CACHES = {
         },
     }
 }
-
-# -------------------------------------------------------------------
 # EMAIL
-# -------------------------------------------------------------------
-
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = config("EMAIL_HOST", default="smtp.example.com")
 EMAIL_PORT = config("EMAIL_PORT", cast=int, default=587)
@@ -157,11 +127,7 @@ EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
 EMAIL_USE_TLS = config("EMAIL_USE_TLS", cast=bool, default=True)
 DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="no-reply@korena.pe")
 
-
-# -------------------------------------------------------------------
 # GRAPHENE / GRAPHQL
-# -------------------------------------------------------------------
-
 GRAPHENE = {
     "SCHEMA": "config.schema.schema",
     "MIDDLEWARE": [
@@ -182,11 +148,7 @@ GRAPHQL_JWT = {
     "JWT_COOKIE_NAME": None,
 }
 
-
-# -------------------------------------------------------------------
 # AUTH PASSWORD RULES
-# -------------------------------------------------------------------
-
 AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
@@ -196,39 +158,23 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
-
-# -------------------------------------------------------------------
 # I18N / TZ
-# -------------------------------------------------------------------
-
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "America/Lima"
 USE_I18N = True
 USE_TZ = True
 
-
-# -------------------------------------------------------------------
 # STATIC & MEDIA
-# -------------------------------------------------------------------
-
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "static"
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
-
-# -------------------------------------------------------------------
 # DEFAULT PRIMARY KEY
-# -------------------------------------------------------------------
-
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-
-# -------------------------------------------------------------------
 # LOGGING
-# -------------------------------------------------------------------
-
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -240,10 +186,6 @@ LOGGING = {
     },
     "root": {"handlers": ["console"], "level": "INFO"},
 }
-
-# -------------------------------------------------------------------
 # FRONTEND
-# -------------------------------------------------------------------
-
 FRONTEND_URL = config("FRONTEND_URL", default="http://localhost:5173")
 SESSION_COOKIE_NAME = "korena-edu-django"

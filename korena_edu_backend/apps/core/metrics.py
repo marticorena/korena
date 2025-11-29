@@ -5,10 +5,7 @@ from django.http import HttpRequest, HttpResponse
 
 from prometheus_client import Counter, Histogram, generate_latest
 
-# ---------------------------------------------------------------------
 # DOCUMENT METRICS
-# ---------------------------------------------------------------------
-
 documents_created_total = Counter(
     "documents_created_total",
     "Total number of documents created",
@@ -37,10 +34,7 @@ document_upload_duration_seconds = Histogram(
 )
 
 
-# ---------------------------------------------------------------------
 # USER / AUTH METRICS
-# ---------------------------------------------------------------------
-
 logins_total = Counter(
     "logins_total",
     "User login attempts",
@@ -60,10 +54,7 @@ emails_sent_total = Counter(
 )
 
 
-# ---------------------------------------------------------------------
 # PLANNING METRICS
-# ---------------------------------------------------------------------
-
 planning_sheets_created_total = Counter(
     "planning_sheets_created_total",
     "Total number of planning sheets created",
@@ -76,10 +67,7 @@ planning_rows_added_total = Counter(
 )
 
 
-# ---------------------------------------------------------------------
 # INFRA / CELERY METRICS
-# ---------------------------------------------------------------------
-
 celery_tasks_total = Counter(
     "celery_tasks_total",
     "Celery tasks executed",
@@ -97,10 +85,7 @@ permission_denied_total = Counter(
 )
 
 
-# ---------------------------------------------------------------------
 # GRAPHQL PERFORMANCE METRICS
-# ---------------------------------------------------------------------
-
 graphql_request_duration_seconds = Histogram(
     "graphql_request_duration_seconds",
     "GraphQL request duration in seconds",
@@ -108,10 +93,7 @@ graphql_request_duration_seconds = Histogram(
 )
 
 
-# ---------------------------------------------------------------------
 # AI METRICS (future)
-# ---------------------------------------------------------------------
-
 ai_summaries_generated_total = Counter(
     "ai_summaries_generated_total",
     "Total number of AI-generated document summaries",

@@ -1,21 +1,62 @@
 from typing import Any
 
-from django.contrib.auth import get_user_model
-from django.core.exceptions import ValidationError
+from django.contrib.auth import authenticate, get_user_model
 
 import graphene
 from graphql import GraphQLError
+import graphql_jwt
 from graphql_jwt.decorators import login_required
 
-from apps.accounts.forms import RegisterForm, UpdateUserForm
-from apps.accounts.schema.types import UserType
+from apps.accounts.forms import ChangePasswordForm, RegisterForm, UpdateUserForm
+from apps.accounts.schema.types import GetTokenType
 from apps.accounts.utils import generate_token_and_email, verify_token
-from apps.accounts.validators import password_validator
 from apps.core.messages import ERROR_MESSAGES
 from apps.core.schema.utils import build_form_errors
 from apps.notifications.tasks import send_email_task
 
 User = get_user_model()
+
+
+class GetToken(graphene.Mutation):
+    """
+    Custom login mutation that replaces graphql_jwt.ObtainJSONWebToken.
+    Returns the same structure, but with custom error codes/messages.
+    """
+
+    class Arguments:
+        email = graphene.String(required=True)
+        password = graphene.String(required=True)
+
+    Output = GetTokenType
+
+    def mutate(
+        self, info: graphene.ResolveInfo, email: str, password: str
+    ) -> GetTokenType:
+        """Authenticate user and return JWT + refresh token."""
+        user = authenticate(email=email, password=password)
+
+        if not user:
+            # Custom error message
+            raise GraphQLError(ERROR_MESSAGES["auth.invalid_credentials"])
+
+        if not user.is_active:
+            raise GraphQLError(ERROR_MESSAGES["auth.not_authenticated"])
+
+        # Generate JWT tokens using graphql_jwt util
+        payload = graphql_jwt.utils.jwt_payload(user)
+        token = graphql_jwt.utils.jwt_encode(payload)
+
+        # Refresh token (graphene-jwt internal)
+        refresh_token_obj = (
+            graphql_jwt.refresh_token.models.RefreshToken.objects.create(user=user)
+        )
+        refresh_token = refresh_token_obj.get_token()
+
+        # Return data matching EXACT graphql-jwt shape
+        return GetTokenType(
+            token=token,
+            refreshToken=refresh_token,
+        )
 
 
 class UserDataArguments:
@@ -101,7 +142,7 @@ class UpdateUser(graphene.Mutation):
     class Arguments(UserDataArguments):
         pass
 
-    user = graphene.Field(UserType)
+    email = graphene.String()
 
     @login_required
     def mutate(self, info: graphene.ResolveInfo, **kwargs: Any) -> "UpdateUser":
@@ -122,7 +163,7 @@ class UpdateUser(graphene.Mutation):
 
         updated_user = form.save()
 
-        return UpdateUser(user=updated_user)
+        return UpdateUser(email=updated_user.email)
 
 
 class ChangePassword(graphene.Mutation):
@@ -153,23 +194,23 @@ class ChangePassword(graphene.Mutation):
         if not user.check_password(current_password):
             raise GraphQLError(ERROR_MESSAGES["auth.invalid_current_password"])
 
-        if password1 != password2:
-            raise GraphQLError(ERROR_MESSAGES["auth.password_mismatch"])
+        form = ChangePasswordForm(
+            {
+                "password1": password1,
+                "password2": password2,
+            }
+        )
 
-        try:
-            password_validator(password1)
-        except ValidationError as e:
-            # Map validator error code to a centralized message if available.
-            raw_message = e.messages[0] if e.messages else str(e)
-            code = getattr(e, "code", "invalid")
-            field_code_key = f"password1.{code}"
-            message = ERROR_MESSAGES.get(
-                field_code_key,
-                ERROR_MESSAGES.get(code, raw_message),
+        if not form.is_valid():
+            errors = build_form_errors(form)
+
+            raise GraphQLError(
+                ERROR_MESSAGES["validation.error"],
+                extensions={"fields": errors},
             )
-            raise GraphQLError(message)
 
-        user.set_password(password1)
+        new_password = form.cleaned_data["password1"]
+        user.set_password(new_password)
         user.save()
 
         return ChangePassword(email=user.email)
