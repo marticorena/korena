@@ -46,9 +46,6 @@ class RegisterForm(UserDataForm):
         fields = [
             "first_name",
             "last_name",
-            "phone",
-            "document_type",
-            "document_number",
             "email",
         ]
 
@@ -78,8 +75,13 @@ class RegisterForm(UserDataForm):
 
         if p1 or p2:
             if p1 != p2:
-                raise forms.ValidationError(PASSWORDS_DONT_MATCH)
-            password_validator(p1)
+                self.add_error("password2", PASSWORDS_DONT_MATCH)
+                return cleaned_data
+
+            try:
+                password_validator(p1)
+            except forms.ValidationError as e:
+                self.add_error("password1", e.messages[0])
 
         return cleaned_data
 
@@ -92,7 +94,6 @@ class UpdateUserForm(UserDataForm):
         fields = [
             "first_name",
             "last_name",
-            "phone",
         ]
 
     def clean(self) -> dict:

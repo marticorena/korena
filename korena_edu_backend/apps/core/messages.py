@@ -5,6 +5,24 @@ used throughout the application. Centralizing these messages makes it easier
 to maintain consistency and support internationalization.
 """
 
+FORM_FIELD_ERROR_MESSAGES = {
+    "email.unique": "Este correo electrónico ya está registrado.",
+    "email.invalid": "Correo inválido.",
+    "password1.invalid": "La contraseña no cumple con los requisitos.",
+    "password2.password_mismatch": "Las contraseñas no coinciden.",
+    "first_name.invalid": "Nombre inválido.",
+    "last_name.invalid": "Apellido inválido.",
+}
+
+FORM_CODE_ERROR_MESSAGES = {
+    "required": "Este campo es obligatorio.",
+    "unique": "Este valor ya está en uso.",
+    "invalid": "Formato inválido.",
+    "max_length": "Valor demasiado largo.",
+    "min_length": "Valor demasiado corto.",
+}
+
+
 # File upload errors
 FILE_UPLOAD_ERROR = "El archivo no se recibió correctamente."
 FILE_FORMAT_ERROR = "Formato no permitido. Solo JPG, PNG o PDF."
@@ -31,6 +49,7 @@ ADDRESS_NOT_FOUND = "Dirección no encontrada."
 DISTRICT_NOT_VALID = "Distrito no válido."
 
 # Validator errors
+VALIDATION_ERROR = "Errores de validación."
 NAME_VALIDATOR_ERROR = "Debe tener al menos 2 letras."
 EMAIL_VALIDATOR_ERROR = "Correo inválido."
 PASSWORD_VALIDATOR_ERROR = "Al menos 8 caracteres, con número y símbolo."

@@ -1,7 +1,7 @@
 services:
   django-app:
     build: .
-#    command: daphne -b 0.0.0.0 -p 8000 config.asgi:application
+    # command: daphne -b 0.0.0.0 -p 8000 config.asgi:application
     command: python manage.py runserver 0.0.0.0:8000
     volumes:
       - .:/django-app
@@ -43,6 +43,8 @@ services:
 
   postgres:
     image: postgres:16
+    ports:
+      - "5432:5432"
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
