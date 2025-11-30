@@ -106,6 +106,7 @@ DATABASES = {
 CELERY_BROKER_URL = config("CELERY_BROKER_URL", default="redis://redis:6379/0")
 CELERY_RESULT_BACKEND = config("CELERY_RESULT_BACKEND", default="redis://redis:6379/1")
 CELERY_TIMEZONE = "America/Lima"
+CELERY_TASK_DEFAULT_QUEUE = "backend"
 
 CACHES = {
     "default": {

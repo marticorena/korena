@@ -1,30 +1,26 @@
-from __future__ import absolute_import, unicode_literals
-
 import os
-
-from django.conf import settings
 
 from celery import Celery
 
-# Set default Django settings module for Celery
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 
 
 def create_celery_app() -> Celery:
-    """
-    Create and configure the Celery application instance.
+    """Create and configure the Celery application instance.
+
+    Returns:
+        Celery: Configured Celery application.
     """
 
-    # Create Celery app
     app = Celery("config")
 
-    # Load Django settings as Celery config
+    # Load Celery configuration from Django settings with CELERY_ prefix.
     app.config_from_object("django.conf:settings", namespace="CELERY")
 
-    # Autodiscover tasks across Django apps
-    app.autodiscover_tasks(lambda: settings.INSTALLED_APPS)
+    # Autodiscover tasks.py modules in INSTALLED_APPS.
+    app.autodiscover_tasks()
 
     return app
 
 
-app = create_celery_app()
+app: Celery = create_celery_app()

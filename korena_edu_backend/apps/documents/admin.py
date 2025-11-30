@@ -7,6 +7,7 @@ from apps.documents.models import (
 )
 
 
+# DOCUMENT CATEGORY ADMIN
 @admin.register(DocumentCategory)
 class DocumentCategoryAdmin(admin.ModelAdmin):
     """Admin configuration for DocumentCategory entries."""
@@ -39,11 +40,14 @@ class DocumentCategoryAdmin(admin.ModelAdmin):
     )
 
 
+# DOCUMENT VERSION INLINE (shown inside Document admin)
 class DocumentVersionInline(admin.TabularInline):
-    """Inline table of versions shown inside the Document admin."""
+    """Inline table of versions inside Document admin."""
 
     model = DocumentVersion
     extra = 0
+
+    # Added HTML metadata fields
     fields = (
         "file",
         "status",
@@ -53,11 +57,21 @@ class DocumentVersionInline(admin.TabularInline):
         "page_count",
         "language",
         "is_indexed",
+        "is_html_ready",
+        "html_generated_at",
     )
-    readonly_fields = ("created_at", "is_indexed")
+
+    readonly_fields = (
+        "created_at",
+        "is_indexed",
+        "is_html_ready",
+        "html_generated_at",
+    )
+
     ordering = ("-created_at",)
 
 
+# DOCUMENT ADMIN
 @admin.register(Document)
 class DocumentAdmin(admin.ModelAdmin):
     """Admin interface for Documents."""
@@ -146,6 +160,7 @@ class DocumentAdmin(admin.ModelAdmin):
     readonly_fields = ("created_at", "updated_at")
 
 
+# DOCUMENT VERSION ADMIN
 @admin.register(DocumentVersion)
 class DocumentVersionAdmin(admin.ModelAdmin):
     """Admin configuration for document versions."""
@@ -160,12 +175,15 @@ class DocumentVersionAdmin(admin.ModelAdmin):
         "page_count",
         "language",
         "is_indexed",
+        "is_html_ready",  # NEW
+        "html_generated_at",  # NEW
     )
     list_filter = (
         "status",
         "source",
         "language",
         "is_indexed",
+        "is_html_ready",  # NEW
         "created_at",
     )
     search_fields = (
@@ -213,6 +231,18 @@ class DocumentVersionAdmin(admin.ModelAdmin):
             },
         ),
         (
+            "HTML rendering",
+            {
+                "fields": (
+                    "is_html_ready",
+                    "html_generated_at",
+                    "html_content",
+                    "html_toc",
+                    "html_error",
+                ),
+            },
+        ),
+        (
             "Timestamps",
             {
                 "fields": ("created_at",),
@@ -220,8 +250,11 @@ class DocumentVersionAdmin(admin.ModelAdmin):
         ),
     )
 
+    # Fields turned readonly to avoid direct admin edits
     readonly_fields = (
         "created_at",
         "extracted_at",
         "is_indexed",
+        "is_html_ready",
+        "html_generated_at",
     )

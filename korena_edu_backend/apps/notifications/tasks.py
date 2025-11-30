@@ -70,5 +70,5 @@ def send_email_task(self, email_log_id: int) -> None:
             log.retries,
         )
 
-        # Retry after 60 seconds
-        raise self.retry(exc=exc, countdown=60)
+        # Retry after 30 seconds
+        raise self.retry(exc=exc, countdown=30)

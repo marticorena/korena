@@ -40,6 +40,7 @@ AUTH_ERROR_MESSAGES: Dict[str, str] = {
 UPLOAD_ERROR_MESSAGES: Dict[str, str] = {
     "upload.no_file": "El archivo no se recibió correctamente.",
     "upload.invalid_format": "Formato no permitido. Solo JPG, PNG o PDF.",
+    "upload.invalid_document_format": "Formato no permitido. Solo PDF o DOCX.",
     "upload.file_too_large": "El archivo es demasiado grande. Máximo {max_size} MB.",
 }
 

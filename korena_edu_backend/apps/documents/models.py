@@ -2,6 +2,8 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
+from apps.documents.validators import validate_pdf_or_docx
+
 
 class DocumentLevel(models.TextChoices):
     """Enumeration of all supported document levels."""
@@ -39,14 +41,19 @@ class DocumentCategory(models.Model):
 
     is_official = models.BooleanField(
         default=False,
-        help_text="Marcar como verdadero cuando esta categoría corresponda "
-        "a normas oficiales del MINEDU/Estado.",
+        help_text=(
+            "Marcar como verdadero cuando esta categoría corresponda "
+            "a normas oficiales del MINEDU/Estado."
+        ),
     )
 
     minedu_reference = models.CharField(
         max_length=200,
         blank=True,
-        help_text="Referencia opcional usada por el MINEDU (familia, grupo, código interno).",
+        help_text=(
+            "Referencia opcional usada por el MINEDU "
+            "(familia, grupo, código interno)."
+        ),
     )
 
     class Meta:
@@ -76,8 +83,10 @@ class DocumentVersioningMetadata(models.Model):
 
     is_archived = models.BooleanField(
         default=False,
-        help_text="Si está activo, el documento se mantiene solo como histórico "
-        "y se oculta de los flujos activos.",
+        help_text=(
+            "Si está activo, el documento se mantiene solo como histórico "
+            "y se oculta de los flujos activos."
+        ),
     )
 
     created_at = models.DateTimeField(default=timezone.now)
@@ -93,7 +102,9 @@ class NormativeDocumentMetadata(models.Model):
     official_code = models.CharField(
         max_length=100,
         blank=True,
-        help_text='Código corto de la norma, por ejemplo: "Ley 28044", "DS 011-2012-ED".',
+        help_text=(
+            'Código corto de la norma, por ejemplo: "Ley 28044", ' '"DS 011-2012-ED".'
+        ),
     )
     official_number = models.CharField(
         max_length=100,
@@ -199,6 +210,56 @@ class AIProcessingMetadata(models.Model):
         abstract = True
 
 
+class HTMLRenderingMetadata(models.Model):
+    """Abstract base with HTML rendering metadata for document versions.
+
+    This is used so each version can have a clean HTML representation
+    ready for the frontend (from scraping or PDF→HTML pipelines).
+    """
+
+    html_content = models.TextField(
+        blank=True,
+        help_text=(
+            "Contenido HTML completo listo para mostrar en el frontend "
+            "(limpio y seguro)."
+        ),
+    )
+
+    html_toc = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text=(
+            "Índice/tabla de contenidos (títulos, anchors, secciones) en formato JSON "
+            "para navegación avanzada en el frontend."
+        ),
+    )
+
+    html_generated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Momento en que se generó o actualizó la versión HTML.",
+    )
+
+    is_html_ready = models.BooleanField(
+        default=False,
+        help_text=(
+            "Indica si el HTML está listo para ser mostrado al usuario "
+            "(pipeline de conversión terminado correctamente)."
+        ),
+    )
+
+    html_error = models.TextField(
+        blank=True,
+        help_text=(
+            "Mensaje de error si la generación/conversión a HTML falló "
+            "(útil para debugging)."
+        ),
+    )
+
+    class Meta:
+        abstract = True
+
+
 class Document(DocumentVersioningMetadata, NormativeDocumentMetadata):
     """Main document entity.
 
@@ -241,23 +302,39 @@ class Document(DocumentVersioningMetadata, NormativeDocumentMetadata):
     class Meta(DocumentVersioningMetadata.Meta):
         ordering = ["-updated_at"]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.title
 
     @property
     def is_official(self) -> bool:
         """Whether this document belongs to an official MINEDU category."""
+
         return self.category.is_official
 
 
 def document_file_path(instance: "DocumentVersion", filename: str) -> str:
-    """Generate the upload path for files."""
+    """Generate the upload path for files.
+
+    Args:
+        instance: DocumentVersion instance.
+        filename: Original filename.
+
+    Returns:
+        str: Relative path where the file will be stored.
+    """
     timestamp = timezone.now().strftime("%Y%m%d%H%M%S")
+
     return f"documents/{instance.document_id}/{timestamp}_{filename}"
 
 
-class DocumentVersion(FileMetadata, AIProcessingMetadata):
-    """Represents a single version of a document."""
+class DocumentVersion(FileMetadata, AIProcessingMetadata, HTMLRenderingMetadata):
+    """Represents a single version of a document.
+
+    Each version keeps:
+    - the original file,
+    - extracted plain text (for IA/indexing),
+    - an optional HTML representation for rich frontend display.
+    """
 
     document = models.ForeignKey(
         Document,
@@ -267,7 +344,8 @@ class DocumentVersion(FileMetadata, AIProcessingMetadata):
 
     file = models.FileField(
         upload_to=document_file_path,
-        help_text="Archivo original (PDF, DOCX, etc.).",
+        validators=[validate_pdf_or_docx],
+        help_text="Archivo original (PDF o DOCX).",
     )
 
     status = models.CharField(
@@ -301,7 +379,7 @@ class DocumentVersion(FileMetadata, AIProcessingMetadata):
     class Meta:
         ordering = ["-created_at"]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.document.title} v{self.pk} [{self.status}]"
 
 
@@ -340,5 +418,5 @@ class DocumentChunk(models.Model):
         ordering = ["version_id", "index"]
         unique_together = ("version", "index")
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"Fragmento {self.index} de {self.version}"

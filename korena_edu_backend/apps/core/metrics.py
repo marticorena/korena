@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 from contextlib import contextmanager
+from functools import wraps
 from time import perf_counter
-from typing import Callable
+from typing import Callable, ContextManager
 
 from django.http import HttpRequest, HttpResponse
 
@@ -34,7 +37,6 @@ document_upload_duration_seconds = Histogram(
     "Time spent processing document uploads",
 )
 
-
 # USER / AUTH METRICS
 logins_total = Counter(
     "logins_total",
@@ -54,7 +56,6 @@ emails_sent_total = Counter(
     ["status"],  # sent / failed
 )
 
-
 # PLANNING METRICS
 planning_sheets_created_total = Counter(
     "planning_sheets_created_total",
@@ -66,7 +67,6 @@ planning_rows_added_total = Counter(
     "planning_rows_added_total",
     "Total number of rows added to planning sheets",
 )
-
 
 # INFRA / CELERY METRICS
 celery_tasks_total = Counter(
@@ -85,14 +85,12 @@ permission_denied_total = Counter(
     "Access attempts denied due to missing permissions",
 )
 
-
 # GRAPHQL PERFORMANCE METRICS
 graphql_request_duration_seconds = Histogram(
     "graphql_request_duration_seconds",
     "GraphQL request duration in seconds",
     ["operation"],
 )
-
 
 # AI METRICS (future)
 ai_summaries_generated_total = Counter(
@@ -108,12 +106,16 @@ ai_recommendation_queries_total = Counter(
 
 
 @contextmanager
-def track_graphql_operation(operation_name: str):
+def track_graphql_operation(operation_name: str) -> ContextManager[None]:
     """Context manager to track GraphQL operation duration.
 
     Args:
         operation_name: Logical name of the GraphQL operation.
+
+    Yields:
+        None: Context for timing the operation.
     """
+
     start = perf_counter()
     try:
         yield
@@ -124,18 +126,36 @@ def track_graphql_operation(operation_name: str):
         ).observe(duration)
 
 
-def track_celery_task(task_name: str) -> Callable:
-    """Decorator to track Celery task execution success/failure."""
+def track_celery_task(task_name: str | None = None) -> Callable:
+    """Decorator to track Celery task execution success/failure.
+
+    If task_name is not provided, the decorated function's __name__ is used.
+
+    Args:
+        task_name: Optional logical task name for metrics.
+
+    Returns:
+        Callable: Decorated function that records metrics on success/failure.
+    """
 
     def decorator(func: Callable) -> Callable:
+        metric_name = task_name or func.__name__
+
+        @wraps(func)
         def wrapper(*args, **kwargs):
             try:
                 result = func(*args, **kwargs)
-                celery_tasks_total.labels(task_name=task_name, status="success").inc()
+                celery_tasks_total.labels(
+                    task_name=metric_name,
+                    status="success",
+                ).inc()
 
                 return result
             except Exception:
-                celery_tasks_total.labels(task_name=task_name, status="failed").inc()
+                celery_tasks_total.labels(
+                    task_name=metric_name,
+                    status="failed",
+                ).inc()
 
                 raise
 
@@ -145,7 +165,15 @@ def track_celery_task(task_name: str) -> Callable:
 
 
 def metrics_view(_request: HttpRequest) -> HttpResponse:
-    """Expose Prometheus metrics endpoint."""
+    """Expose Prometheus metrics endpoint.
+
+    Args:
+        _request: Django HTTP request (ignored).
+
+    Returns:
+        HttpResponse: Response with Prometheus metrics payload.
+    """
+
     data = generate_latest()
 
     return HttpResponse(

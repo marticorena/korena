@@ -63,6 +63,8 @@ click-plugins==1.1.1.2
     # via celery
 click-repl==0.3.0
     # via celery
+cobble==0.1.4
+    # via mammoth
 colorama==0.4.6
     # via
     #   click
@@ -133,7 +135,11 @@ kombu==5.5.4
 lia-web==0.2.3
     # via strawberry-graphql
 lxml==6.0.2
-    # via premailer
+    # via
+    #   premailer
+    #   python-docx
+mammoth==1.11.0
+    # via -r requirements.in
 more-itertools==10.8.0
     # via cssutils
 msgpack==1.1.2
@@ -186,6 +192,8 @@ pygments==2.19.2
     # via pytest
 pyjwt==2.10.1
     # via djangorestframework-simplejwt
+pymupdf==1.26.6
+    # via -r requirements.in
 pyopenssl==25.3.0
     # via twisted
 pyphen==0.17.2
@@ -204,6 +212,8 @@ python-dateutil==2.9.0.post0
     #   celery
     #   strawberry-graphql
 python-decouple==3.8
+    # via -r requirements.in
+python-docx==1.2.0
     # via -r requirements.in
 pytokens==0.3.0
     # via black
@@ -244,6 +254,7 @@ typing-extensions==4.15.0
     # via
     #   lia-web
     #   pyopenssl
+    #   python-docx
     #   strawberry-graphql
     #   twisted
 tzdata==2025.2
