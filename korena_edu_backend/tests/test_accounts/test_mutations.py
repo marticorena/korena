@@ -1,5 +1,3 @@
-# tests/test_accounts/test_mutations.py
-
 from types import SimpleNamespace
 from typing import Any, Dict
 

@@ -5,7 +5,6 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
 from django.test import Client as DjangoClient
 
-from graphene.test import Client as GrapheneClient
 import pytest
 
 from config.schema import schema
@@ -14,15 +13,14 @@ User = get_user_model()
 
 
 @pytest.fixture
-def gql_client() -> GrapheneClient:
-    """Return a Graphene test client bound to the project schema.
+def gql_client() -> Any:
+    """Return the project GraphQL schema for direct execution.
 
     Returns:
-        GrapheneClient: Graphene test client.
+        Any: Strawberry schema instance.
     """
-    client = GrapheneClient(schema)
 
-    return client
+    return schema
 
 
 @pytest.fixture
@@ -88,29 +86,45 @@ def superuser(db) -> User:
     return u
 
 
+def _make_request_context(user: Any) -> SimpleNamespace:
+    """Build a Strawberry-like context with request.user.
+
+    This matches the shape expected by permissions that
+    access `info.context.request.user`.
+
+    Args:
+        user: User or AnonymousUser instance.
+
+    Returns:
+        SimpleNamespace: Context with `request.user`.
+    """
+
+    return SimpleNamespace(request=SimpleNamespace(user=user))
+
+
 @pytest.fixture
 def anon_context() -> SimpleNamespace:
     """Return a GraphQL context with an anonymous user.
 
     Returns:
-        SimpleNamespace: Context with AnonymousUser.
+        SimpleNamespace: Context with AnonymousUser under request.user.
     """
-    ctx = SimpleNamespace(user=AnonymousUser())
+    ctx = _make_request_context(AnonymousUser())
 
     return ctx
 
 
 @pytest.fixture
 def non_verified_context(non_verified_user: User) -> SimpleNamespace:
-    """Return a GraphQL context with an authenticated user.
+    """Return a GraphQL context with a non-verified authenticated user.
 
     Args:
-        user: A Django user.
+        non_verified_user: A Django user instance.
 
     Returns:
-        SimpleNamespace: Context with the provided user.
+        SimpleNamespace: Context with the provided user under request.user.
     """
-    ctx = SimpleNamespace(user=non_verified_user)
+    ctx = _make_request_context(non_verified_user)
 
     return ctx
 
@@ -120,12 +134,12 @@ def verified_context(verified_user: User) -> SimpleNamespace:
     """Return a GraphQL context with an authenticated, verified user.
 
     Args:
-        verified_user: A verified Django user.
+        verified_user: A verified Django user instance.
 
     Returns:
-        SimpleNamespace: Context with the verified user.
+        SimpleNamespace: Context with the verified user under request.user.
     """
-    ctx = SimpleNamespace(user=verified_user)
+    ctx = _make_request_context(verified_user)
 
     return ctx
 
@@ -148,12 +162,14 @@ def admin_client_logged(client: DjangoClient, superuser: User) -> DjangoClient:
 
 @pytest.fixture
 def exec_gql(
-    gql_client: GrapheneClient,
+    gql_client: Any,
 ) -> Callable[[str, Optional[Dict[str, Any]], Optional[Any]], Dict[str, Any]]:
     """Return a helper to execute GraphQL with variables and context.
 
+    This uses the Strawberry schema's `execute_sync` method.
+
     Args:
-        gql_client: The Graphene client.
+        gql_client: The Strawberry schema instance.
 
     Returns:
         Callable: Function(query: str, variables: dict | None, context: Any | None) -> dict.
@@ -164,7 +180,7 @@ def exec_gql(
         variables: Optional[Dict[str, Any]] = None,
         context: Optional[Any] = None,
     ) -> Dict[str, Any]:
-        """Execute a GraphQL operation via Graphene test client.
+        """Execute a GraphQL operation via the Strawberry schema.
 
         Args:
             query: GraphQL query or mutation string.
@@ -172,22 +188,27 @@ def exec_gql(
             context: Optional context; if None, an anonymous context is used.
 
         Returns:
-            Dict[str, Any]: Execution result as a dict with "data" and optional "errors".
+            Dict[str, Any]: Execution result as a dict with "data" and no "errors".
         """
         if context is None:
-            context = SimpleNamespace(user=AnonymousUser())
+            context = _make_request_context(AnonymousUser())
 
-        result = gql_client.execute(
+        result = gql_client.execute_sync(
             query,
-            variables=variables or {},
+            variable_values=variables or {},
             context_value=context,
         )
 
-        if result and result.get("errors"):
-            messages = [getattr(e, "message", str(e)) for e in result["errors"]]
+        if result.errors:
+            messages = [getattr(e, "message", str(e)) for e in result.errors]
 
             raise AssertionError(f"GraphQL errors: {messages}")
 
-        return result
+        # Normalize to dict for backwards-compatible usage in tests.
+        data: Dict[str, Any] = {
+            "data": result.data,
+        }
+
+        return data
 
     return _exec

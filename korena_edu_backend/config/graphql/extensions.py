@@ -7,11 +7,11 @@ from strawberry.exceptions import GraphQLError as StrawberryGraphQLError
 from strawberry.extensions import FieldExtension, QueryDepthLimiter, SchemaExtension
 from strawberry.types import ExecutionContext, Info
 
-from apps.core.graphql.messages import (
+from apps.core.metrics import track_graphql_operation
+from config.graphql.messages import (
     APOLLO_INTERNAL_ERROR,
     QUERY_TOO_COMPLEX,
 )
-from apps.core.metrics import track_graphql_operation
 
 
 class _FieldCountingVisitor(Visitor):

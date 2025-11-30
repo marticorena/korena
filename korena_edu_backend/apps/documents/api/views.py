@@ -2,12 +2,11 @@ from typing import Any, Dict
 
 from rest_framework import status
 from rest_framework.parsers import FormParser, MultiPartParser
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.accounts.api.permissions import IsVerifiedUser
+from apps.core.endpoints.permissions import IsAuthenticatedRest, IsVerifiedRest
 from apps.core.messages import ERROR_MESSAGES
 from apps.core.metrics import (
     document_upload_duration_seconds,
@@ -30,7 +29,7 @@ class DocumentVersionUploadView(APIView):
     """
 
     parser_classes = [MultiPartParser, FormParser]
-    permission_classes = [IsAuthenticated, IsVerifiedUser]
+    permission_classes = [IsAuthenticatedRest, IsVerifiedRest]
 
     def post(
         self,

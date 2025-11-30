@@ -2,11 +2,11 @@ import strawberry
 
 from apps.accounts.graphql.mutations import AccountMutations
 from apps.accounts.graphql.queries import AccountsQuery
-from apps.core.graphql.extensions import get_default_extensions
 from apps.core.graphql.queries import HealthQueries
 from apps.documents.graphql.mutations import DocumentMutations
 from apps.documents.graphql.queries import DocumentQueries
 from apps.planning.graphql.queries import PlanningQuery
+from config.graphql.extensions import get_default_extensions
 
 
 @strawberry.type

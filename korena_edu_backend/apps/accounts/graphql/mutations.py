@@ -14,10 +14,10 @@ from apps.accounts.forms import (
     RegisterForm,
     UpdateUserForm,
 )
-from apps.accounts.graphql.types import TokenPair, UserType
+from apps.accounts.graphql.types import EmailPayload, RegisterUserPayload, TokenPair
 from apps.accounts.utils import generate_token_and_email, verify_token
-from apps.core.graphql.permissions import IsAuthenticated, IsVerified
-from apps.core.graphql.utils import build_form_errors
+from apps.core.endpoints.permissions import IsAuthenticatedGraphql, IsVerifiedGraphql
+from apps.core.graphql.utils import build_form_errors, raise_form_error
 from apps.core.messages import ERROR_MESSAGES
 from apps.notifications.tasks import send_email_task
 
@@ -25,22 +25,25 @@ User = get_user_model()
 
 
 @strawberry.type
-class AuthMutations:
-    """Mutations for authentication using SimpleJWT."""
+class AccountMutations:
+    """Root mutation entry for accounts."""
 
-    @strawberry.mutation
-    def token_auth(self, info: Info, email: str, password: str) -> TokenPair:
+    @strawberry.mutation(name="loginUser")
+    def login_user(self, info: Info, email: str, password: str) -> TokenPair:
         """Authenticate user and return an access + refresh token pair."""
         user = authenticate(email=email, password=password)
 
         if not user:
-            raise Exception(ERROR_MESSAGES["auth.invalid_credentials"])
+            # Invalid credentials.
+            raise ValueError(ERROR_MESSAGES["auth.invalid_credentials"])
 
         if not user.is_active:
-            raise Exception(ERROR_MESSAGES["auth.not_authenticated"])
+            # Inactive / disabled account.
+            raise ValueError(ERROR_MESSAGES["auth.not_authenticated"])
 
         if not getattr(user, "is_verified", False):
-            raise Exception(ERROR_MESSAGES["auth.not_verified"])
+            # Email not verified yet.
+            raise PermissionError(ERROR_MESSAGES["auth.not_verified"])
 
         serializer = TokenObtainPairSerializer(
             data={"email": email, "password": password},
@@ -48,28 +51,34 @@ class AuthMutations:
         )
 
         if not serializer.is_valid():
-            raise Exception(ERROR_MESSAGES["auth.invalid_credentials"])
+            raise ValueError(ERROR_MESSAGES["auth.invalid_credentials"])
 
         tokens = serializer.validated_data
 
-        return TokenPair(access=str(tokens["access"]), refresh=str(tokens["refresh"]))
+        return TokenPair(
+            access=str(tokens["access"]),
+            refresh=str(tokens["refresh"]),
+        )
 
-    @strawberry.mutation
+    @strawberry.mutation(name="refreshToken")
     def refresh_token(self, info: Info, refresh: str) -> TokenPair:
-        """Refresh the access token."""
+        """Refresh the access token using a refresh token."""
         serializer = TokenRefreshSerializer(data={"refresh": refresh})
 
         try:
             serializer.is_valid(raise_exception=True)
         except TokenError:
-            raise Exception(ERROR_MESSAGES["auth.token_invalid"])
+            raise ValueError(ERROR_MESSAGES["auth.token_invalid"])
 
         data = serializer.validated_data
         new_access = str(data["access"])
 
-        return TokenPair(access=new_access, refresh=refresh)
+        return TokenPair(
+            access=new_access,
+            refresh=refresh,
+        )
 
-    @strawberry.mutation
+    @strawberry.mutation(name="verifyToken")
     def verify_token(self, info: Info, token: str) -> bool:
         """Verify the validity of a JWT token."""
         serializer = TokenVerifySerializer(data={"token": token})
@@ -77,16 +86,11 @@ class AuthMutations:
         try:
             serializer.is_valid(raise_exception=True)
         except TokenError:
-            raise Exception(ERROR_MESSAGES["auth.token_invalid"])
+            raise ValueError(ERROR_MESSAGES["auth.token_invalid"])
 
         return True
 
-
-@strawberry.type
-class RegistrationMutations:
-    """Registration and email verification."""
-
-    @strawberry.mutation
+    @strawberry.mutation(name="registerUser")
     def register_user(
         self,
         info: Info,
@@ -95,7 +99,7 @@ class RegistrationMutations:
         password2: str,
         first_name: str,
         last_name: str,
-    ) -> str:
+    ) -> RegisterUserPayload:
         """Register a user and send verification email."""
         form = RegisterForm(
             {
@@ -108,11 +112,8 @@ class RegistrationMutations:
         )
 
         if not form.is_valid():
-            errors = build_form_errors(form)
-            raise Exception(
-                ERROR_MESSAGES["validation.error"],
-                {"fields": errors},
-            )
+            fields = build_form_errors(form)
+            raise_form_error(fields)
 
         user = User.objects.create_user(
             email=form.cleaned_data["email"],
@@ -125,39 +126,37 @@ class RegistrationMutations:
         token, email_log = generate_token_and_email(user)
         send_email_task.delay(email_log.id)
 
-        return token
+        return RegisterUserPayload(token=token)
 
-    @strawberry.mutation
-    def verify_email(self, info: Info, token: str) -> str:
+    @strawberry.mutation(name="verifyEmail")
+    def verify_email(self, info: Info, token: str) -> EmailPayload:
         """Verify user account using email token."""
         email = verify_token(token)
 
         if not email:
-            raise Exception(ERROR_MESSAGES["auth.token_invalid"])
+            raise ValueError(ERROR_MESSAGES["auth.token_invalid"])
 
         try:
             user = User.objects.get(email=email)
-        except User.DoesNotExist:
-            raise Exception(ERROR_MESSAGES["auth.user_not_found"])
+        except User.DoesNotExist as exc:
+            raise ValueError(ERROR_MESSAGES["auth.user_not_found"]) from exc
 
         user.is_verified = True
         user.is_active = True
         user.save()
 
-        return email
+        return EmailPayload(email=email)
 
-
-@strawberry.type
-class ProfileMutations:
-    """Mutations for managing user profile."""
-
-    @strawberry.mutation(permission_classes=[IsAuthenticated, IsVerified])
+    @strawberry.mutation(
+        name="updateUser",
+        permission_classes=[IsAuthenticatedGraphql, IsVerifiedGraphql],
+    )
     def update_user(
         self,
         info: Info,
         first_name: str,
         last_name: str,
-    ) -> UserType:
+    ) -> EmailPayload:
         """Update the authenticated user's profile."""
         user = info.context.request.user
 
@@ -167,69 +166,58 @@ class ProfileMutations:
         )
 
         if not form.is_valid():
-            errors = build_form_errors(form)
-            raise Exception(
-                ERROR_MESSAGES["validation.error"],
-                {"fields": errors},
-            )
+            fields = build_form_errors(form)
+            raise_form_error(fields)
 
         updated_user = form.save()
 
-        return updated_user
+        return EmailPayload(email=updated_user.email)
 
-    @strawberry.mutation(permission_classes=[IsAuthenticated, IsVerified])
+    @strawberry.mutation(
+        name="changePassword",
+        permission_classes=[IsAuthenticatedGraphql, IsVerifiedGraphql],
+    )
     def change_password(
         self,
         info: Info,
         current_password: str,
         password1: str,
         password2: str,
-    ) -> str:
+    ) -> EmailPayload:
         """Change password for authenticated user."""
         user = info.context.request.user
 
         if not user.check_password(current_password):
-            raise Exception(ERROR_MESSAGES["auth.invalid_current_password"])
+            raise PermissionError(ERROR_MESSAGES["auth.invalid_current_password"])
 
         form = ChangePasswordForm({"password1": password1, "password2": password2})
 
         if not form.is_valid():
-            errors = build_form_errors(form)
-            raise Exception(
-                ERROR_MESSAGES["validation.error"],
-                {"fields": errors},
-            )
+            fields = build_form_errors(form)
+            raise_form_error(fields)
 
         new_password = form.cleaned_data["password1"]
         user.set_password(new_password)
         user.save()
 
-        return user.email
+        return EmailPayload(email=user.email)
 
-    @strawberry.mutation(permission_classes=[IsAuthenticated, IsVerified])
+    @strawberry.mutation(
+        name="deleteAccount",
+        permission_classes=[IsAuthenticatedGraphql, IsVerifiedGraphql],
+    )
     def delete_account(
         self,
         info: Info,
         current_password: str,
-    ) -> str:
+    ) -> EmailPayload:
         """Permanently delete the user account."""
         user = info.context.request.user
 
         if not user.check_password(current_password):
-            raise Exception(ERROR_MESSAGES["auth.invalid_current_password"])
+            raise PermissionError(ERROR_MESSAGES["auth.invalid_current_password"])
 
         deleted_email = user.email
         user.delete()
 
-        return deleted_email
-
-
-@strawberry.type
-class AccountMutations:
-    """Root mutation entry for accounts."""
-
-    auth: AuthMutations = strawberry.field(default_factory=AuthMutations)
-    registration: RegistrationMutations = strawberry.field(
-        default_factory=RegistrationMutations
-    )
-    profile: ProfileMutations = strawberry.field(default_factory=ProfileMutations)
+        return EmailPayload(email=deleted_email)

@@ -3,7 +3,7 @@ from typing import List
 import strawberry
 from strawberry.types import Info
 
-from apps.core.graphql.permissions import IsAuthenticated, IsVerified
+from apps.core.endpoints.permissions import IsAuthenticatedGraphql, IsVerifiedGraphql
 from apps.planning.graphql.types import PlanningSheetType
 from apps.planning.models import PlanningSheet
 
@@ -12,7 +12,7 @@ from apps.planning.models import PlanningSheet
 class PlanningQuery:
     """Planning sheet queries."""
 
-    @strawberry.field(permission_classes=[IsAuthenticated, IsVerified])
+    @strawberry.field(permission_classes=[IsAuthenticatedGraphql, IsVerifiedGraphql])
     def my_planning_sheets(
         self,
         info: Info,

@@ -2,6 +2,8 @@ from typing import Any, Dict, List
 
 from django.forms import Form
 
+from strawberry.exceptions import StrawberryGraphQLError
+
 from apps.core.messages import ERROR_MESSAGES
 
 
@@ -45,3 +47,14 @@ def assert_field_error(fields: List[Dict[str, Any]], field: str, code: str) -> N
     assert any(
         item.get("field") == field and item.get("code") == code for item in fields
     ), f"Expected error for field '{field}' with code '{code}' not found. Got: {fields}"
+
+
+def raise_form_error(fields):
+    """Raise a GraphQL validation error using centralized messages."""
+    raise StrawberryGraphQLError(
+        message=ERROR_MESSAGES["validation.error"],
+        extensions={
+            "code": "BAD_USER_INPUT",
+            "fields": fields,
+        },
+    )

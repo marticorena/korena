@@ -3,7 +3,7 @@ from typing import List, Optional
 import strawberry
 from strawberry.types import Info
 
-from apps.core.graphql.permissions import IsAuthenticated, IsVerified
+from apps.core.endpoints.permissions import IsAuthenticatedGraphql, IsVerifiedGraphql
 from apps.core.messages import ERROR_MESSAGES
 from apps.documents.graphql.types import DocumentType
 from apps.documents.models import Document as DocumentModel
@@ -14,7 +14,7 @@ from apps.documents.models import DocumentLevel
 class DocumentQueries:
     """Document-related GraphQL queries."""
 
-    @strawberry.field(permission_classes=[IsAuthenticated, IsVerified])
+    @strawberry.field(permission_classes=[IsAuthenticatedGraphql, IsVerifiedGraphql])
     def my_documents(
         self,
         info: Info,
@@ -32,7 +32,7 @@ class DocumentQueries:
 
         return list(queryset)
 
-    @strawberry.field(permission_classes=[IsAuthenticated, IsVerified])
+    @strawberry.field(permission_classes=[IsAuthenticatedGraphql, IsVerifiedGraphql])
     def document(
         self,
         info: Info,

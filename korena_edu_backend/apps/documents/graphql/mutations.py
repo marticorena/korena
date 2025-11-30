@@ -3,14 +3,14 @@ from typing import Optional
 import strawberry
 from strawberry.types import Info
 
-from apps.core.graphql.extensions import GraphQLOperationMetricsExtension
-from apps.core.graphql.permissions import IsAuthenticated, IsVerified
+from apps.core.endpoints.permissions import IsAuthenticatedGraphql, IsVerifiedGraphql
 from apps.core.messages import ERROR_MESSAGES
 from apps.core.metrics import documents_created_total
 from apps.documents.graphql.types import DocumentType
 from apps.documents.models import Document as DocumentModel
 from apps.documents.models import DocumentType as DocumentTypeModel
 from apps.schools.models import School as SchoolModel
+from config.graphql.extensions import GraphQLOperationMetricsExtension
 
 
 @strawberry.type
@@ -22,7 +22,7 @@ class DocumentMutations:
     """
 
     @strawberry.mutation(
-        permission_classes=[IsAuthenticated, IsVerified],
+        permission_classes=[IsAuthenticatedGraphql, IsVerifiedGraphql],
         extensions=[GraphQLOperationMetricsExtension("create_document")],
     )
     def create_document(

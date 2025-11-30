@@ -1,12 +1,6 @@
-from typing import TYPE_CHECKING
-
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
-
-if TYPE_CHECKING:
-    from apps.accounts.models import User  # noqa: F401
-    from apps.schools.models import School  # noqa: F401
 
 
 class DocumentLevel(models.TextChoices):

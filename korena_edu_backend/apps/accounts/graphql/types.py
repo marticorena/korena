@@ -30,3 +30,17 @@ class UserType:
     role: str
     is_verified: bool
     avatar_url: Optional[str]
+
+
+@strawberry.type
+class RegisterUserPayload:
+    """Payload for registerUser mutation."""
+
+    token: str
+
+
+@strawberry.type
+class EmailPayload:
+    """Generic payload that returns an email string."""
+
+    email: str

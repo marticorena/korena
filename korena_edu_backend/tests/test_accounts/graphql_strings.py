@@ -10,7 +10,6 @@ query Me {
 }
 """
 
-
 REGISTER_USER_MUTATION = """
 mutation RegisterUser(
   $email: String!,
@@ -71,10 +70,10 @@ mutation DeleteAccount($currentPassword: String!) {
 }
 """
 
-GET_TOKEN_MUTATION = """
-mutation GetToken($email: String!, $password: String!) {
-  getToken(email: $email, password: $password) {
-    token
+LOGIN_USER_MUTATION = """
+mutation LoginUser($email: String!, $password: String!) {
+  loginUser(email: $email, password: $password) {
+    accessToken
     refreshToken
   }
 }

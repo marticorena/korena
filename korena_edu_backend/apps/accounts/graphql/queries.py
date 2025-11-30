@@ -5,15 +5,21 @@ from strawberry.types import Info
 
 from apps.accounts.graphql.types import UserType
 from apps.accounts.models import User
+from apps.core.endpoints.permissions import (
+    IsAuthenticatedGraphql,
+    IsVerifiedGraphql,
+)
 
 
 @strawberry.type
 class AccountsQuery:
     """Root queries for account/user operations."""
 
-    @strawberry.field
+    @strawberry.field(
+        permission_classes=[IsAuthenticatedGraphql, IsVerifiedGraphql],
+    )
     def me(self, info: Info) -> Optional[UserType]:
-        """Return the authenticated user.
+        """Return the authenticated and verified user.
 
         Args:
             info: Strawberry resolver info containing context with request.
