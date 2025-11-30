@@ -4,7 +4,7 @@ from strawberry.exceptions import GraphQLError as StrawberryGraphQLError
 from strawberry.extensions import FieldExtension, QueryDepthLimiter, SchemaExtension
 from strawberry.types import ExecutionContext, Info
 
-from apps.core.messages import ERROR_MESSAGES
+from apps.core.endpoints.utils import resolve_error_code
 from apps.core.metrics import track_graphql_operation
 from config.graphql.messages import (
     APOLLO_INTERNAL_ERROR,
@@ -12,7 +12,11 @@ from config.graphql.messages import (
 
 
 class ApolloErrorExtension(SchemaExtension):
-    """Normalize errors to Apollo-style codes in `extensions.code`."""
+    """Normalize errors to Apollo-style codes in `extensions.code`.
+
+    Uses the same centralized logic as REST helpers, so error messages
+    and codes stay consistent across the whole backend.
+    """
 
     def on_operation(self):
         """Run after operation and rewrite errors if needed."""
@@ -28,21 +32,14 @@ class ApolloErrorExtension(SchemaExtension):
 
         for error in result.errors:
             original = getattr(error, "original_error", None)
-            existing_ext = error.extensions or {}
+            existing_ext = dict(error.extensions or {})
 
-            code = existing_ext.get("code")
-
-            if code is None:
-                if error.message == ERROR_MESSAGES["auth.not_authenticated"]:
-                    code = "UNAUTHENTICATED"
-                elif error.message == ERROR_MESSAGES["auth.not_verified"]:
-                    code = "FORBIDDEN"
-                elif isinstance(original, PermissionError):
-                    code = "FORBIDDEN"
-                elif isinstance(original, ValueError):
-                    code = "BAD_USER_INPUT"
-                else:
-                    code = "INTERNAL_SERVER_ERROR"
+            # Centralized resolver: explicit code → message map → exception map.
+            resolved_code = resolve_error_code(
+                message=error.message or "",
+                original_error=original,
+                code=existing_ext.get("code"),
+            )
 
             formatted.append(
                 StrawberryGraphQLError(
@@ -52,7 +49,7 @@ class ApolloErrorExtension(SchemaExtension):
                     positions=error.positions,
                     path=error.path,
                     original_error=original,
-                    extensions={**existing_ext, "code": code},
+                    extensions={**existing_ext, "code": resolved_code},
                 )
             )
 
@@ -71,6 +68,11 @@ class GraphQLOperationMetricsExtension(FieldExtension):
 
 
 def get_default_extensions() -> list[SchemaExtension]:
+    """Return default schema-level extensions for Strawberry.
+
+    Returns:
+        list[SchemaExtension]: Extensions to be applied to the schema.
+    """
     return [
         QueryDepthLimiter(max_depth=10),
         ApolloErrorExtension(),
