@@ -4,6 +4,7 @@ from strawberry.exceptions import GraphQLError as StrawberryGraphQLError
 from strawberry.extensions import FieldExtension, QueryDepthLimiter, SchemaExtension
 from strawberry.types import ExecutionContext, Info
 
+from apps.core.messages import ERROR_MESSAGES
 from apps.core.metrics import track_graphql_operation
 from config.graphql.messages import (
     APOLLO_INTERNAL_ERROR,
@@ -29,14 +30,19 @@ class ApolloErrorExtension(SchemaExtension):
             original = getattr(error, "original_error", None)
             existing_ext = error.extensions or {}
 
-            code = existing_ext.get("code") or "INTERNAL_SERVER_ERROR"
+            code = existing_ext.get("code")
 
-            if isinstance(original, PermissionError):
-                code = "FORBIDDEN"
-            elif isinstance(original, ValueError):
-                code = "BAD_USER_INPUT"
-            elif original is None:
-                code = "INTERNAL_SERVER_ERROR"
+            if code is None:
+                if error.message == ERROR_MESSAGES["auth.not_authenticated"]:
+                    code = "UNAUTHENTICATED"
+                elif error.message == ERROR_MESSAGES["auth.not_verified"]:
+                    code = "FORBIDDEN"
+                elif isinstance(original, PermissionError):
+                    code = "FORBIDDEN"
+                elif isinstance(original, ValueError):
+                    code = "BAD_USER_INPUT"
+                else:
+                    code = "INTERNAL_SERVER_ERROR"
 
             formatted.append(
                 StrawberryGraphQLError(

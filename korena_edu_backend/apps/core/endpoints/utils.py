@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from rest_framework.response import Response
 
@@ -47,11 +47,20 @@ def check_verified_user(user: Any) -> Tuple[bool, str | None]:
 def graphql_style_error_response(
     message: str,
     status_code: int,
-    path: List[str] | None = None,
-    code: str = "INTERNAL_SERVER_ERROR",
+    path: Optional[List[str]] = None,
+    code: Optional[str] = None,
 ) -> Response:
     """Return an error payload that mimics GraphQL execution errors."""
     error_path = path or []
+
+    if code is None:
+        if message == ERROR_MESSAGES["auth.not_authenticated"]:
+            code = "UNAUTHENTICATED"
+        elif message == ERROR_MESSAGES["auth.not_verified"]:
+            code = "FORBIDDEN"
+        else:
+            code = "INTERNAL_SERVER_ERROR"
+
     payload: Dict[str, Any] = {
         "data": None,
         "errors": [

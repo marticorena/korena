@@ -45,7 +45,6 @@ class DocumentVersionUploadView(APIView):
                 ),
                 status_code=status.HTTP_403_FORBIDDEN,
                 path=self.graphql_path,
-                code="INTERNAL_SERVER_ERROR",
             )
 
         if isinstance(exc, PermissionDenied):
@@ -56,7 +55,6 @@ class DocumentVersionUploadView(APIView):
                 ),
                 status_code=status.HTTP_403_FORBIDDEN,
                 path=self.graphql_path,
-                code="INTERNAL_SERVER_ERROR",
             )
 
         return super().handle_exception(exc)
