@@ -24,16 +24,41 @@ class DocumentMutations:
     @strawberry.mutation(
         permission_classes=[IsAuthenticatedGraphql, IsVerifiedGraphql],
         extensions=[GraphQLOperationMetricsExtension("create_document")],
+        name="createDocument",
     )
     def create_document(
         self,
         info: Info,
         document_type_code: str,
         title: Optional[str] = None,
-        description: Optional[str] = "",
+        description: Optional[str] = None,
         school_id: Optional[strawberry.ID] = None,
     ) -> DocumentType:
-        user = info.context.user
+        """Create a document shell for the authenticated user.
+
+        This mutation creates the base document record (metadata). File
+        uploads are handled separately via the REST endpoint.
+
+        Args:
+            info: Strawberry execution context.
+            document_type_code: Unique code for the document type
+                (for example, "PEI", "PAT", "PCI", "PA", "UA").
+            title: Optional custom title for the document. If omitted, the
+                document type name will be used.
+            description: Optional description for the document.
+            school_id: Optional school ID. If provided, the document will be
+                associated with that school. If omitted, the document will be
+                personal (no school).
+
+        Returns:
+            DocumentType: The created document instance exposed as a GraphQL type.
+
+        Raises:
+            ValueError: If the document type does not exist, if the school does
+                not exist, or if a document of this type already exists for the
+                given user and school combination.
+        """
+        user = info.context.request.user
 
         try:
             document_type = DocumentTypeModel.objects.get(code=document_type_code)
@@ -64,13 +89,14 @@ class DocumentMutations:
             raise ValueError(ERROR_MESSAGES["documents.already_exists"])
 
         resolved_title = title or document_type.name
+        resolved_description = description or ""
 
         document = DocumentModel.objects.create(
             owner=user,
             school=school,
             type=document_type,
             title=resolved_title,
-            description=description or "",
+            description=resolved_description,
         )
 
         documents_created_total.inc()
