@@ -17,10 +17,10 @@ document_versions_uploaded_total = Counter(
     "Total number of document versions uploaded",
 )
 
-documents_by_type_total = Counter(
-    "documents_by_type_total",
-    "Documents created by type",
-    ["type"],
+documents_by_category_total = Counter(
+    "documents_by_category_total",
+    "Documents created by category",
+    ["category"],
 )
 
 documents_by_level_total = Counter(

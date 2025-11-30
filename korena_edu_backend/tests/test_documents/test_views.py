@@ -17,7 +17,10 @@ from apps.documents.models import DocumentLevel
 from apps.documents.models import DocumentVersion as DocumentVersionModel
 from apps.documents.models import DocumentVersionStatus
 from tests.helpers import auth_headers_for
-from tests.test_documents.helpers import create_document, create_document_type
+from tests.test_documents.helpers import (
+    helper_test_create_document,
+    helper_test_create_document_category,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -29,8 +32,10 @@ def test_rest_upload_document_version_creates_new_version_and_updates_current(
     verified_user: User,
 ) -> None:
     """REST upload should create a new version and set it as current."""
-    doc_type = create_document_type(DocumentLevel.TEACHER)
-    document = create_document(verified_user, doc_type, title="Documento base")
+    doc_category = helper_test_create_document_category(DocumentLevel.TEACHER)
+    document = helper_test_create_document(
+        verified_user, doc_category, title="Documento base"
+    )
 
     upload_content = b"Dummy PDF content"
     uploaded_file = SimpleUploadedFile(
@@ -91,8 +96,10 @@ def test_rest_upload_document_version_requires_authentication(
     verified_user: User,
 ) -> None:
     """REST upload should fail for anonymous requests."""
-    doc_type = create_document_type(DocumentLevel.TEACHER)
-    document = create_document(verified_user, doc_type, title="Documento base")
+    doc_category = helper_test_create_document_category(DocumentLevel.TEACHER)
+    document = helper_test_create_document(
+        verified_user, doc_category, title="Documento base"
+    )
 
     upload_file = SimpleUploadedFile(
         "test.pdf",
@@ -131,8 +138,10 @@ def test_rest_upload_document_version_requires_verified_user(
     non_verified_user: User,
 ) -> None:
     """REST upload should fail when user is not verified."""
-    doc_type = create_document_type(DocumentLevel.TEACHER)
-    document = create_document(non_verified_user, doc_type, title="Documento base")
+    doc_category = helper_test_create_document_category(DocumentLevel.TEACHER)
+    document = helper_test_create_document(
+        non_verified_user, doc_category, title="Documento base"
+    )
 
     upload_file = SimpleUploadedFile(
         "test.pdf",
@@ -175,8 +184,10 @@ def test_rest_upload_document_version_fails_when_document_not_found_or_not_owned
         first_name="Owner2",
         last_name="User2",
     )
-    doc_type = create_document_type(DocumentLevel.TEACHER)
-    document = create_document(owner2, doc_type, title="Documento de otro usuario")
+    doc_category = helper_test_create_document_category(DocumentLevel.TEACHER)
+    document = helper_test_create_document(
+        owner2, doc_category, title="Documento de otro usuario"
+    )
 
     upload_file = SimpleUploadedFile(
         "test.pdf",
@@ -217,8 +228,10 @@ def test_rest_upload_document_version_requires_file(
     verified_user: User,
 ) -> None:
     """REST upload should fail when no file is provided."""
-    doc_type = create_document_type(DocumentLevel.TEACHER)
-    document = create_document(verified_user, doc_type, title="Documento base")
+    doc_category = helper_test_create_document_category(DocumentLevel.TEACHER)
+    document = helper_test_create_document(
+        verified_user, doc_category, title="Documento base"
+    )
 
     url = reverse(
         "document-version-upload",

@@ -21,13 +21,16 @@ from apps.core.metrics import (
     documents_by_level_total,
 )
 from apps.documents.api.serializers import DocumentVersionSerializer
-from apps.documents.models import Document as DocumentModel
-from apps.documents.models import DocumentVersion as DocumentVersionModel
-from apps.documents.models import DocumentVersionStatus
+from apps.documents.models import Document, DocumentVersion, DocumentVersionStatus
 
 
 class DocumentVersionUploadView(APIView):
-    """REST endpoint to upload a new document version with GraphQL-like errors."""
+    """REST endpoint to upload a new document version with GraphQL-like errors.
+
+    This view accepts a multipart/form-data request with a single `file`
+    field and creates a new DocumentVersion associated with the given
+    document_id, updating the document.current_version pointer.
+    """
 
     parser_classes = [MultiPartParser, FormParser]
     authentication_classes = (JWTAuthentication,)
@@ -36,7 +39,14 @@ class DocumentVersionUploadView(APIView):
     graphql_path = ["documentVersionUpload"]
 
     def handle_exception(self, exc: Exception) -> Response:
-        """Normalize auth/permission errors to a GraphQL-like error payload."""
+        """Normalize auth/permission errors to a GraphQL-like error payload.
+
+        Args:
+            exc: Exception raised by the view.
+
+        Returns:
+            Response: DRF response with a GraphQL-like error envelope.
+        """
         if isinstance(exc, (NotAuthenticated, AuthenticationFailed)):
             return graphql_style_error_response(
                 message=ERROR_MESSAGES.get(
@@ -66,11 +76,20 @@ class DocumentVersionUploadView(APIView):
         *args: Any,
         **kwargs: Any,
     ) -> Response:
+        """Handle a new document version upload.
+
+        Args:
+            request: Incoming HTTP request.
+            document_id: ID of the Document that will receive the new version.
+
+        Returns:
+            Response: Serialized DocumentVersion data or GraphQL-like error.
+        """
         user = request.user
 
         try:
-            document = DocumentModel.objects.get(pk=document_id, owner=user)
-        except DocumentModel.DoesNotExist:
+            document = Document.objects.get(pk=document_id, owner=user)
+        except Document.DoesNotExist:
             return graphql_style_error_response(
                 message=ERROR_MESSAGES["documents.not_found_or_not_owned"],
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -87,18 +106,31 @@ class DocumentVersionUploadView(APIView):
                 code="BAD_USER_INPUT",
             )
 
+        # Extract basic file metadata from the uploaded file.
+        original_filename = getattr(uploaded_file, "name", "")
+        mime_type = getattr(uploaded_file, "content_type", "") or ""
+
         with document_upload_duration_seconds.time():
-            version = DocumentVersionModel.objects.create(
+            # Create the new version as DRAFT; promotion to ACTIVE can be
+            # handled in a separate flow if needed.
+            version = DocumentVersion.objects.create(
                 document=document,
                 file=uploaded_file,
                 status=DocumentVersionStatus.DRAFT,
                 created_by=user,
+                original_filename=original_filename,
+                mime_type=mime_type,
+                # page_count, language, checksum, extracted_text, etc.
+                # will be filled later by background processing.
             )
-            document.current_version = version
-            document.save(update_fields=["current_version"])
 
+            # Update the current_version pointer to this new version.
+            document.current_version = version
+            document.save(update_fields=["current_version", "updated_at"])
+
+        # Metrics: count uploaded versions and documents per level.
         document_versions_uploaded_total.inc()
-        documents_by_level_total.labels(level=document.type.level).inc()
+        documents_by_level_total.labels(level=document.category.level).inc()
 
         serializer = DocumentVersionSerializer(version)
         payload: Dict[str, Any] = {

@@ -24,6 +24,16 @@ class DocumentQueries:
         """Return non-archived documents for the authenticated user.
 
         Optionally filtered by document level.
+
+        Args:
+            info: GraphQL resolver context.
+            level: Optional document level filter (STATE, SCHOOL, TEACHER, CLASSROOM).
+
+        Returns:
+            List[DocumentType]: List of document GraphQL types.
+
+        Raises:
+            GraphQLError: If an invalid level string is provided.
         """
         user = info.context.request.user
 
@@ -33,7 +43,7 @@ class DocumentQueries:
             if level not in DocumentLevel.values:
                 raise GraphQLError(ERROR_MESSAGES["documents.invalid_level"])
 
-            queryset = queryset.filter(type__level=level)
+            queryset = queryset.filter(category__level=level)
 
         return list(queryset)
 
@@ -45,9 +55,15 @@ class DocumentQueries:
     ) -> DocumentType:
         """Return a single non-archived document owned by the authenticated user.
 
+        Args:
+            info: GraphQL resolver context.
+            id: ID of the document.
+
+        Returns:
+            DocumentType: The requested document.
+
         Raises:
-            GraphQLError: If the document does not exist or is not owned
-                by the current user.
+            GraphQLError: If the document does not exist or is not owned by the user.
         """
         user = info.context.request.user
 

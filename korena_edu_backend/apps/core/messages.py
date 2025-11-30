@@ -48,7 +48,9 @@ DOCUMENT_ERROR_MESSAGES: Dict[str, str] = {
     "documents.invalid_level": "El nivel de documento proporcionado no es válido.",
     "documents.not_found_or_not_owned": "Documento no encontrado o no te pertenece.",
     "documents.already_exists": "Ya existe un documento de este tipo para tu cuenta.",
-    "documents.type_not_found": "El tipo de documento solicitado no existe.",
+    "documents.category_not_found": "El tipo de documento solicitado no existe.",
+    "documents.category_official_forbidden": "Solo el equipo de Korena puede marcar tipos como oficiales",
+    "documents.category_code_already_exists": "Ya existe un tipo de documento con ese código.",
 }
 
 # Generic / shared messages: "domain.code" → text

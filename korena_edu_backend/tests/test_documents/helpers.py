@@ -1,15 +1,16 @@
 from django.contrib.auth import get_user_model
 
 from apps.documents.models import Document as DocumentModel
-from apps.documents.models import DocumentLevel
-from apps.documents.models import DocumentType as DocumentTypeModel
+from apps.documents.models import DocumentCategory, DocumentLevel
 
 User = get_user_model()
 
 
-def create_document_type(level: str = DocumentLevel.TEACHER) -> DocumentTypeModel:
-    """Create a DocumentType for tests."""
-    doc_type = DocumentTypeModel.objects.create(
+def helper_test_create_document_category(
+    level: str = DocumentLevel.TEACHER,
+) -> DocumentCategory:
+    """Create a DocumentCategory for tests."""
+    category = DocumentCategory.objects.create(
         code=f"doc-{level.lower()}",
         name=f"Documento {level}",
         description="Tipo de prueba",
@@ -17,12 +18,12 @@ def create_document_type(level: str = DocumentLevel.TEACHER) -> DocumentTypeMode
         is_official=False,
     )
 
-    return doc_type
+    return category
 
 
-def create_document(
+def helper_test_create_document(
     owner: User,
-    doc_type: DocumentTypeModel,
+    category: DocumentCategory,
     title: str = "Documento de prueba",
     description: str = "Descripción",
 ) -> DocumentModel:
@@ -30,7 +31,7 @@ def create_document(
     document = DocumentModel.objects.create(
         owner=owner,
         school=None,
-        type=doc_type,
+        category=category,
         title=title,
         description=description,
         is_archived=False,

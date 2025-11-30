@@ -6,7 +6,7 @@ query MyDocuments($level: String) {
     id
     title
     description
-    type {
+    category {
       id
       code
       level
@@ -29,7 +29,7 @@ query Document($id: ID!) {
     id
     title
     description
-    type {
+    category {
       id
       code
       level
@@ -48,13 +48,13 @@ query Document($id: ID!) {
 
 CREATE_DOCUMENT_MUTATION = """
 mutation CreateDocument(
-  $documentTypeCode: String!
+  $documentCategoryCode: String!
   $title: String
   $description: String
   $schoolId: ID
 ) {
   createDocument(
-    documentTypeCode: $documentTypeCode
+    documentCategoryCode: $documentCategoryCode
     title: $title
     description: $description
     schoolId: $schoolId
@@ -63,7 +63,7 @@ mutation CreateDocument(
       id
       title
       description
-      type {
+      category {
         id
         code
         level
@@ -76,8 +76,39 @@ mutation CreateDocument(
 }
 """
 
+CREATE_DOCUMENT_CATEGORY_MUTATION = """
+mutation CreateDocumentCategory(
+  $code: String!
+  $name: String!
+  $level: String!
+  $description: String
+  $isOfficial: Boolean
+  $mineduReference: String
+) {
+  createDocumentCategory(
+    code: $code
+    name: $name
+    level: $level
+    description: $description
+    isOfficial: $isOfficial
+    mineduReference: $mineduReference
+  ) {
+    documentCategory {
+      id
+      code
+      name
+      description
+      level
+      isOfficial
+      mineduReference
+    }
+  }
+}
+"""
+
 __all__ = [
     "MY_DOCUMENTS_QUERY",
     "DOCUMENT_QUERY",
     "CREATE_DOCUMENT_MUTATION",
+    "CREATE_DOCUMENT_CATEGORY_MUTATION",
 ]
