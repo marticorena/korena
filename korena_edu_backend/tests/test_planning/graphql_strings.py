@@ -1,3 +1,5 @@
+"""GraphQL operation strings for planning-related tests."""
+
 MY_PLANNING_SHEETS_QUERY = """
 query MyPlanningSheets {
   myPlanningSheets {
@@ -22,3 +24,7 @@ query MyPlanningSheets {
   }
 }
 """
+
+__all__ = [
+    "MY_PLANNING_SHEETS_QUERY",
+]

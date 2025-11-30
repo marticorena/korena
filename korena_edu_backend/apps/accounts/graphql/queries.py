@@ -1,10 +1,7 @@
-from typing import Optional
-
 import strawberry
 from strawberry.types import Info
 
 from apps.accounts.graphql.types import UserType
-from apps.accounts.models import User
 from apps.core.endpoints.permissions import (
     IsAuthenticatedGraphql,
     IsVerifiedGraphql,
@@ -18,18 +15,9 @@ class AccountsQuery:
     @strawberry.field(
         permission_classes=[IsAuthenticatedGraphql, IsVerifiedGraphql],
     )
-    def me(self, info: Info) -> Optional[UserType]:
-        """Return the authenticated and verified user.
-
-        Args:
-            info: Strawberry resolver info containing context with request.
-
-        Returns:
-            Optional[UserType]: The authenticated user or None if anonymous.
+    def me(self, info: Info) -> UserType:
         """
-        user: User = info.context.request.user
-
-        if user.is_anonymous:
-            return None
-
-        return user
+        Returns the authenticated and verified user.
+        Permissions already enforce both conditions.
+        """
+        return info.context.request.user

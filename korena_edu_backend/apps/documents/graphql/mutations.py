@@ -1,6 +1,7 @@
 from typing import Optional
 
 import strawberry
+from strawberry.exceptions import GraphQLError
 from strawberry.types import Info
 
 from apps.core.endpoints.permissions import IsAuthenticatedGraphql, IsVerifiedGraphql
@@ -11,6 +12,13 @@ from apps.documents.models import Document as DocumentModel
 from apps.documents.models import DocumentType as DocumentTypeModel
 from apps.schools.models import School as SchoolModel
 from config.graphql.extensions import GraphQLOperationMetricsExtension
+
+
+@strawberry.type
+class CreateDocumentPayload:
+    """Payload for the createDocument mutation."""
+
+    document: DocumentType
 
 
 @strawberry.type
@@ -33,37 +41,18 @@ class DocumentMutations:
         title: Optional[str] = None,
         description: Optional[str] = None,
         school_id: Optional[strawberry.ID] = None,
-    ) -> DocumentType:
+    ) -> CreateDocumentPayload:
         """Create a document shell for the authenticated user.
 
         This mutation creates the base document record (metadata). File
         uploads are handled separately via the REST endpoint.
-
-        Args:
-            info: Strawberry execution context.
-            document_type_code: Unique code for the document type
-                (for example, "PEI", "PAT", "PCI", "PA", "UA").
-            title: Optional custom title for the document. If omitted, the
-                document type name will be used.
-            description: Optional description for the document.
-            school_id: Optional school ID. If provided, the document will be
-                associated with that school. If omitted, the document will be
-                personal (no school).
-
-        Returns:
-            DocumentType: The created document instance exposed as a GraphQL type.
-
-        Raises:
-            ValueError: If the document type does not exist, if the school does
-                not exist, or if a document of this type already exists for the
-                given user and school combination.
         """
         user = info.context.request.user
 
         try:
             document_type = DocumentTypeModel.objects.get(code=document_type_code)
         except DocumentTypeModel.DoesNotExist as exc:
-            raise ValueError(
+            raise GraphQLError(
                 ERROR_MESSAGES["documents.type_not_found"],
             ) from exc
 
@@ -72,7 +61,7 @@ class DocumentMutations:
             try:
                 school = SchoolModel.objects.get(pk=school_id)
             except SchoolModel.DoesNotExist as exc:
-                raise ValueError(
+                raise GraphQLError(
                     ERROR_MESSAGES["validation.error"],
                 ) from exc
 
@@ -86,7 +75,7 @@ class DocumentMutations:
             existing_qs = existing_qs.filter(school=school)
 
         if existing_qs.exists():
-            raise ValueError(ERROR_MESSAGES["documents.already_exists"])
+            raise GraphQLError(ERROR_MESSAGES["documents.already_exists"])
 
         resolved_title = title or document_type.name
         resolved_description = description or ""
@@ -101,4 +90,4 @@ class DocumentMutations:
 
         documents_created_total.inc()
 
-        return document
+        return CreateDocumentPayload(document=document)

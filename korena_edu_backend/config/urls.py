@@ -15,14 +15,14 @@ urlpatterns = [
         csrf_exempt(
             GraphQLView.as_view(
                 schema=schema,
-                graphiql=True,
+                graphql_ide=True,
             )
         ),
         name="graphql",
     ),
     path(
         "api/documents/<int:document_id>/versions/",
-        DocumentVersionUploadView.as_view(),
+        csrf_exempt(DocumentVersionUploadView.as_view()),
         name="document-version-upload",
     ),
     path("metrics/", metrics_view, name="metrics"),

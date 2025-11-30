@@ -1,3 +1,5 @@
+"""GraphQL operation strings for documents-related tests."""
+
 MY_DOCUMENTS_QUERY = """
 query MyDocuments($level: String) {
   myDocuments(level: $level) {
@@ -73,3 +75,9 @@ mutation CreateDocument(
   }
 }
 """
+
+__all__ = [
+    "MY_DOCUMENTS_QUERY",
+    "DOCUMENT_QUERY",
+    "CREATE_DOCUMENT_MUTATION",
+]

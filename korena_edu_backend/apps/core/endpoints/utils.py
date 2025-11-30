@@ -1,4 +1,6 @@
-from typing import Any, Tuple
+from typing import Any, Dict, List, Tuple
+
+from rest_framework.response import Response
 
 from apps.core.messages import ERROR_MESSAGES
 
@@ -40,3 +42,28 @@ def check_verified_user(user: Any) -> Tuple[bool, str | None]:
         return False, error_message
 
     return True, None
+
+
+def graphql_style_error_response(
+    message: str,
+    status_code: int,
+    path: List[str] | None = None,
+    code: str = "INTERNAL_SERVER_ERROR",
+) -> Response:
+    """Return an error payload that mimics GraphQL execution errors."""
+    error_path = path or []
+    payload: Dict[str, Any] = {
+        "data": None,
+        "errors": [
+            {
+                "message": message,
+                "locations": [],
+                "path": error_path,
+                "extensions": {
+                    "code": code,
+                },
+            },
+        ],
+    }
+
+    return Response(payload, status=status_code)

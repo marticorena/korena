@@ -1,3 +1,5 @@
+"""Core GraphQL operation strings for health/readiness checks in tests."""
+
 HEALTHZ_QUERY = """
 query Healthz {
   healthz {
@@ -19,3 +21,8 @@ query Readyz {
   }
 }
 """
+
+__all__ = [
+    "HEALTHZ_QUERY",
+    "READYZ_QUERY",
+]

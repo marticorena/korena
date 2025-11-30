@@ -1,12 +1,19 @@
 from typing import Any, Dict
 
 from rest_framework import status
+from rest_framework.exceptions import (
+    AuthenticationFailed,
+    NotAuthenticated,
+    PermissionDenied,
+)
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from apps.core.endpoints.permissions import IsAuthenticatedRest, IsVerifiedRest
+from apps.core.endpoints.utils import graphql_style_error_response
 from apps.core.messages import ERROR_MESSAGES
 from apps.core.metrics import (
     document_upload_duration_seconds,
@@ -20,16 +27,39 @@ from apps.documents.models import DocumentVersionStatus
 
 
 class DocumentVersionUploadView(APIView):
-    """Upload a new document version via REST.
-
-    This endpoint mirrors the previous GraphQL mutation logic:
-    - Validates document ownership.
-    - Tracks upload duration and increments Prometheus metrics.
-    - Creates a new DocumentVersion and marks it as current.
-    """
+    """REST endpoint to upload a new document version with GraphQL-like errors."""
 
     parser_classes = [MultiPartParser, FormParser]
+    authentication_classes = (JWTAuthentication,)
     permission_classes = [IsAuthenticatedRest, IsVerifiedRest]
+
+    graphql_path = ["documentVersionUpload"]
+
+    def handle_exception(self, exc: Exception) -> Response:
+        """Normalize auth/permission errors to a GraphQL-like error payload."""
+        if isinstance(exc, (NotAuthenticated, AuthenticationFailed)):
+            return graphql_style_error_response(
+                message=ERROR_MESSAGES.get(
+                    "auth.not_authenticated",
+                    "No autenticado.",
+                ),
+                status_code=status.HTTP_403_FORBIDDEN,
+                path=self.graphql_path,
+                code="INTERNAL_SERVER_ERROR",
+            )
+
+        if isinstance(exc, PermissionDenied):
+            return graphql_style_error_response(
+                message=ERROR_MESSAGES.get(
+                    "auth.not_verified",
+                    "Cuenta no verificada.",
+                ),
+                status_code=status.HTTP_403_FORBIDDEN,
+                path=self.graphql_path,
+                code="INTERNAL_SERVER_ERROR",
+            )
+
+        return super().handle_exception(exc)
 
     def post(
         self,
@@ -38,34 +68,27 @@ class DocumentVersionUploadView(APIView):
         *args: Any,
         **kwargs: Any,
     ) -> Response:
-        """Handle POST request to upload a new document version.
-
-        Args:
-            request: HTTP request with multipart/form-data.
-            document_id: Target document primary key.
-
-        Returns:
-            Response with the created version data or an error message.
-        """
         user = request.user
 
         try:
             document = DocumentModel.objects.get(pk=document_id, owner=user)
         except DocumentModel.DoesNotExist:
-            return Response(
-                {"detail": ERROR_MESSAGES["documents.not_found_or_not_owned"]},
-                status=status.HTTP_404_NOT_FOUND,
+            return graphql_style_error_response(
+                message=ERROR_MESSAGES["documents.not_found_or_not_owned"],
+                status_code=status.HTTP_404_NOT_FOUND,
+                path=self.graphql_path,
+                code="BAD_USER_INPUT",
             )
 
         uploaded_file = request.FILES.get("file")
-
         if not uploaded_file:
-            return Response(
-                {"detail": ERROR_MESSAGES["upload.no_file"]},
-                status=status.HTTP_400_BAD_REQUEST,
+            return graphql_style_error_response(
+                message=ERROR_MESSAGES["upload.no_file"],
+                status_code=status.HTTP_400_BAD_REQUEST,
+                path=self.graphql_path,
+                code="BAD_USER_INPUT",
             )
 
-        # Measure upload and version creation duration.
         with document_upload_duration_seconds.time():
             version = DocumentVersionModel.objects.create(
                 document=document,
@@ -73,11 +96,9 @@ class DocumentVersionUploadView(APIView):
                 status=DocumentVersionStatus.DRAFT,
                 created_by=user,
             )
-
             document.current_version = version
             document.save(update_fields=["current_version"])
 
-        # Increment counters for metrics.
         document_versions_uploaded_total.inc()
         documents_by_level_total.labels(level=document.type.level).inc()
 
@@ -87,4 +108,5 @@ class DocumentVersionUploadView(APIView):
             "version": serializer.data,
         }
 
+        # Success stays as plain JSON payload (no GraphQL envelope).
         return Response(payload, status=status.HTTP_201_CREATED)

@@ -1,8 +1,5 @@
 from typing import Any, List
 
-from graphql import GraphQLError
-from graphql.language import DocumentNode, FieldNode
-from graphql.language.visitor import Visitor, visit
 from strawberry.exceptions import GraphQLError as StrawberryGraphQLError
 from strawberry.extensions import FieldExtension, QueryDepthLimiter, SchemaExtension
 from strawberry.types import ExecutionContext, Info
@@ -10,47 +7,7 @@ from strawberry.types import ExecutionContext, Info
 from apps.core.metrics import track_graphql_operation
 from config.graphql.messages import (
     APOLLO_INTERNAL_ERROR,
-    QUERY_TOO_COMPLEX,
 )
-
-
-class _FieldCountingVisitor(Visitor):
-    def __init__(self) -> None:
-        self.cost = 0
-
-    def enter_field(self, node: FieldNode, *args: Any) -> None:
-        self.cost += 1
-
-
-class SimpleCostAnalyzer(SchemaExtension):
-    """Naive cost analyzer based on number of requested fields."""
-
-    max_cost: int = 300
-
-    def on_validate(self):
-        """Validate query complexity before execution."""
-        execution_context: ExecutionContext = self.execution_context
-        document: DocumentNode | None = getattr(execution_context, "document", None)
-
-        if not document:
-            yield
-
-            return
-
-        visitor = _FieldCountingVisitor()
-        visit(document, visitor)
-
-        if visitor.cost > self.max_cost:
-            raise GraphQLError(
-                QUERY_TOO_COMPLEX,
-                extensions={
-                    "code": "QUERY_TOO_COMPLEX",
-                    "cost": visitor.cost,
-                    "maxCost": self.max_cost,
-                },
-            )
-
-        yield
 
 
 class ApolloErrorExtension(SchemaExtension):
@@ -110,6 +67,5 @@ class GraphQLOperationMetricsExtension(FieldExtension):
 def get_default_extensions() -> list[SchemaExtension]:
     return [
         QueryDepthLimiter(max_depth=10),
-        SimpleCostAnalyzer(),
         ApolloErrorExtension(),
     ]

@@ -1,6 +1,7 @@
 from typing import List, Optional
 
 import strawberry
+from strawberry.exceptions import GraphQLError
 from strawberry.types import Info
 
 from apps.core.endpoints.permissions import IsAuthenticatedGraphql, IsVerifiedGraphql
@@ -20,13 +21,17 @@ class DocumentQueries:
         info: Info,
         level: Optional[str] = None,
     ) -> List[DocumentType]:
+        """Return non-archived documents for the authenticated user.
+
+        Optionally filtered by document level.
+        """
         user = info.context.request.user
 
         queryset = DocumentModel.objects.filter(owner=user, is_archived=False)
 
-        if level:
+        if level is not None:
             if level not in DocumentLevel.values:
-                raise ValueError(ERROR_MESSAGES["documents.invalid_level"])
+                raise GraphQLError(ERROR_MESSAGES["documents.invalid_level"])
 
             queryset = queryset.filter(type__level=level)
 
@@ -37,7 +42,13 @@ class DocumentQueries:
         self,
         info: Info,
         id: strawberry.ID,
-    ) -> Optional[DocumentType]:
+    ) -> DocumentType:
+        """Return a single non-archived document owned by the authenticated user.
+
+        Raises:
+            GraphQLError: If the document does not exist or is not owned
+                by the current user.
+        """
         user = info.context.request.user
 
         try:
@@ -47,7 +58,7 @@ class DocumentQueries:
                 is_archived=False,
             )
         except DocumentModel.DoesNotExist as exc:
-            raise ValueError(
+            raise GraphQLError(
                 ERROR_MESSAGES["documents.not_found_or_not_owned"],
             ) from exc
 

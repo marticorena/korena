@@ -1,3 +1,8 @@
+"""Reusable GraphQL operation strings for accounts-related tests.
+
+These queries and mutations are aligned with the current Strawberry schema.
+"""
+
 ME_QUERY = """
 query Me {
   me {
@@ -6,7 +11,32 @@ query Me {
     firstName
     lastName
     role
+    isVerified
   }
+}
+"""
+
+LOGIN_USER_MUTATION = """
+mutation LoginUser($email: String!, $password: String!) {
+  loginUser(email: $email, password: $password) {
+    access
+    refresh
+  }
+}
+"""
+
+REFRESH_TOKEN_MUTATION = """
+mutation RefreshToken($refresh: String!) {
+  refreshToken(refresh: $refresh) {
+    access
+    refresh
+  }
+}
+"""
+
+VERIFY_TOKEN_MUTATION = """
+mutation VerifyToken($token: String!) {
+  verifyToken(token: $token)
 }
 """
 
@@ -70,11 +100,14 @@ mutation DeleteAccount($currentPassword: String!) {
 }
 """
 
-LOGIN_USER_MUTATION = """
-mutation LoginUser($email: String!, $password: String!) {
-  loginUser(email: $email, password: $password) {
-    accessToken
-    refreshToken
-  }
-}
-"""
+__all__ = [
+    "ME_QUERY",
+    "LOGIN_USER_MUTATION",
+    "REFRESH_TOKEN_MUTATION",
+    "VERIFY_TOKEN_MUTATION",
+    "REGISTER_USER_MUTATION",
+    "VERIFY_EMAIL_MUTATION",
+    "UPDATE_USER_MUTATION",
+    "CHANGE_PASSWORD_MUTATION",
+    "DELETE_ACCOUNT_MUTATION",
+]

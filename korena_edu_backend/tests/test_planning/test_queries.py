@@ -23,7 +23,7 @@ def create_planning_sheet(
     school_year: int = 2025,
     columns_schema: list[dict[str, Any]] | None = None,
 ) -> PlanningSheet:
-    """Helper to create a PlanningSheet for tests."""
+    """Create a PlanningSheet for tests."""
     if columns_schema is None:
         columns_schema = [
             {"field": "col1", "headerName": "Columna 1"},
@@ -50,7 +50,7 @@ def create_planning_row(
     index: int,
     data: Dict[str, Any] | None = None,
 ) -> PlanningRow:
-    """Helper to create a PlanningRow for tests."""
+    """Create a PlanningRow for tests."""
     if data is None:
         data = {"col1": f"valor-{index}", "col2": index}
 
@@ -69,11 +69,9 @@ def test_my_planning_sheets_returns_only_owned_sheets_for_verified_user(
     verified_context,
 ) -> None:
     """myPlanningSheets should return only sheets owned by the verified user."""
-    # Sheets for verified user.
     sheet1 = create_planning_sheet(verified_user, title="Planificación 1")
     sheet2 = create_planning_sheet(verified_user, title="Planificación 2")
 
-    # Sheet for another user.
     other_user = User.objects.create_user(
         email="other-planning@example.com",
         password="P4ss-w0rd!",
@@ -110,43 +108,44 @@ def test_my_planning_sheets_includes_rows_for_each_sheet(
     )
 
     nodes = result["data"]["myPlanningSheets"]
+
     assert len(nodes) == 1
 
     rows = nodes[0]["rows"]
-    assert len(rows) == 2
 
-    indices = [row["index"] for row in rows]
-    assert indices == [1, 2]
+    assert len(rows) == 2
+    assert [row["index"] for row in rows] == [1, 2]
 
 
 def test_my_planning_sheets_requires_verified_user(
-    gql_client,
+    gql_client: Any,
     non_verified_context,
     non_verified_user: User,
 ) -> None:
     """myPlanningSheets should fail when user is authenticated but not verified."""
     create_planning_sheet(non_verified_user, title="Planificación no verificada")
 
-    result: Dict[str, Any] = gql_client.execute(
+    result = gql_client.execute_sync(
         MY_PLANNING_SHEETS_QUERY,
         context_value=non_verified_context,
     )
 
-    assert "errors" in result
-    error = result["errors"][0]
-    assert error["message"] == ERROR_MESSAGES["auth.not_verified"]
-    assert result["data"]["myPlanningSheets"] is None
+    assert result.errors is not None
+    error = result.errors[0]
+
+    assert error.message == ERROR_MESSAGES["auth.not_verified"]
+    assert result.data is None
 
 
 def test_my_planning_sheets_requires_authentication(
-    gql_client,
+    gql_client: Any,
     anon_context,
 ) -> None:
     """myPlanningSheets should fail for anonymous users."""
-    result: Dict[str, Any] = gql_client.execute(
+    result = gql_client.execute_sync(
         MY_PLANNING_SHEETS_QUERY,
         context_value=anon_context,
     )
 
-    assert "errors" in result
-    assert result["data"]["myPlanningSheets"] is None
+    assert result.errors is not None
+    assert result.data is None
