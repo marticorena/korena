@@ -1,13 +1,15 @@
+# apps/documents/admin.py
+
 from django.contrib import admin
 
 from apps.documents.models import (
     Document,
     DocumentCategory,
+    DocumentChunk,
     DocumentVersion,
 )
 
 
-# DOCUMENT CATEGORY ADMIN
 @admin.register(DocumentCategory)
 class DocumentCategoryAdmin(admin.ModelAdmin):
     """Admin configuration for DocumentCategory entries."""
@@ -40,14 +42,12 @@ class DocumentCategoryAdmin(admin.ModelAdmin):
     )
 
 
-# DOCUMENT VERSION INLINE (shown inside Document admin)
 class DocumentVersionInline(admin.TabularInline):
     """Inline table of versions inside Document admin."""
 
     model = DocumentVersion
     extra = 0
 
-    # Added HTML metadata fields
     fields = (
         "file",
         "status",
@@ -57,21 +57,21 @@ class DocumentVersionInline(admin.TabularInline):
         "page_count",
         "language",
         "is_indexed",
-        "is_html_ready",
-        "html_generated_at",
+        "is_structured_ready",
+        "structured_generated_at",
     )
 
     readonly_fields = (
         "created_at",
         "is_indexed",
-        "is_html_ready",
-        "html_generated_at",
+        "is_structured_ready",
+        "structured_generated_at",
     )
 
     ordering = ("-created_at",)
+    show_change_link = True
 
 
-# DOCUMENT ADMIN
 @admin.register(Document)
 class DocumentAdmin(admin.ModelAdmin):
     """Admin interface for Documents."""
@@ -106,8 +106,8 @@ class DocumentAdmin(admin.ModelAdmin):
     )
     autocomplete_fields = ("owner", "school", "category", "current_version")
     ordering = ("-updated_at",)
-
     inlines = [DocumentVersionInline]
+    list_select_related = ("owner", "category", "school", "current_version")
 
     fieldsets = (
         (
@@ -160,7 +160,36 @@ class DocumentAdmin(admin.ModelAdmin):
     readonly_fields = ("created_at", "updated_at")
 
 
-# DOCUMENT VERSION ADMIN
+class DocumentChunkInline(admin.TabularInline):
+    """Inline view of chunks inside a DocumentVersion."""
+
+    model = DocumentChunk
+    extra = 0
+
+    fields = (
+        "index",
+        "chunk_type",
+        "token_count",
+        "page_display",
+        "created_at",
+    )
+    readonly_fields = (
+        "index",
+        "chunk_type",
+        "token_count",
+        "page_display",
+        "created_at",
+    )
+    ordering = ("index",)
+
+    def page_display(self, obj: DocumentChunk) -> str:
+        """Return a human-friendly page number from metadata."""
+        page = obj.page
+        return str(page) if page is not None else "-"
+
+    page_display.short_description = "Página"
+
+
 @admin.register(DocumentVersion)
 class DocumentVersionAdmin(admin.ModelAdmin):
     """Admin configuration for document versions."""
@@ -175,15 +204,15 @@ class DocumentVersionAdmin(admin.ModelAdmin):
         "page_count",
         "language",
         "is_indexed",
-        "is_html_ready",  # NEW
-        "html_generated_at",  # NEW
+        "is_structured_ready",
+        "structured_generated_at",
     )
     list_filter = (
         "status",
         "source",
         "language",
         "is_indexed",
-        "is_html_ready",  # NEW
+        "is_structured_ready",
         "created_at",
     )
     search_fields = (
@@ -193,6 +222,8 @@ class DocumentVersionAdmin(admin.ModelAdmin):
     )
     autocomplete_fields = ("document", "created_by")
     ordering = ("-created_at",)
+    inlines = [DocumentChunkInline]
+    list_select_related = ("document", "created_by")
 
     fieldsets = (
         (
@@ -224,21 +255,19 @@ class DocumentVersionAdmin(admin.ModelAdmin):
             {
                 "fields": (
                     "ai_summary",
-                    "extracted_at",
                     "is_indexed",
                     "indexing_error",
                 ),
             },
         ),
         (
-            "HTML rendering",
+            "Structured content",
             {
                 "fields": (
-                    "is_html_ready",
-                    "html_generated_at",
-                    "html_content",
-                    "html_toc",
-                    "html_error",
+                    "is_structured_ready",
+                    "structured_generated_at",
+                    "structured_content",
+                    "structured_error",
                 ),
             },
         ),
@@ -250,11 +279,60 @@ class DocumentVersionAdmin(admin.ModelAdmin):
         ),
     )
 
-    # Fields turned readonly to avoid direct admin edits
     readonly_fields = (
         "created_at",
-        "extracted_at",
         "is_indexed",
-        "is_html_ready",
-        "html_generated_at",
+        "ai_summary",
+        "is_structured_ready",
+        "structured_generated_at",
+        "structured_content",
     )
+
+
+@admin.register(DocumentChunk)
+class DocumentChunkAdmin(admin.ModelAdmin):
+    """Admin configuration for document chunks."""
+
+    list_display = (
+        "id",
+        "version",
+        "index",
+        "chunk_type",
+        "page_display",
+        "token_count",
+        "has_embedding",
+        "created_at",
+    )
+    list_filter = (
+        "chunk_type",
+        "version__document",
+        "version__status",
+        "version__source",
+        "created_at",
+    )
+    search_fields = (
+        "content",
+        "version__document__title",
+    )
+    autocomplete_fields = ("version",)
+    ordering = ("version_id", "index")
+    list_select_related = ("version", "version__document")
+
+    readonly_fields = (
+        "created_at",
+        "embedding",
+    )
+
+    def page_display(self, obj: DocumentChunk) -> str:
+        """Return a human-friendly page number from metadata."""
+        page = obj.page
+        return str(page) if page is not None else "-"
+
+    page_display.short_description = "Página"
+
+    def has_embedding(self, obj: DocumentChunk) -> bool:
+        """Return True when the chunk already has an embedding."""
+        return obj.embedding is not None
+
+    has_embedding.boolean = True
+    has_embedding.short_description = "Embedding"

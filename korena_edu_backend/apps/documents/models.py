@@ -1,6 +1,10 @@
+from typing import Any, Dict, Optional
+
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
+
+from pgvector.django import VectorField
 
 from apps.documents.validators import validate_pdf_or_docx
 
@@ -178,18 +182,12 @@ class FileMetadata(models.Model):
 
 
 class AIProcessingMetadata(models.Model):
-    """Abstract base with IA-related processing metadata."""
+    """Abstract base with IA-related processing metadata.
 
-    extracted_text = models.TextField(
-        blank=True,
-        help_text="Texto plano extraído del archivo original.",
-    )
-
-    extracted_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="Momento en que se extrajo el texto.",
-    )
+    This keeps:
+    - AI summary for UX / quick understanding
+    - indexing flags for chunks/embeddings
+    """
 
     ai_summary = models.TextField(
         blank=True,
@@ -210,50 +208,56 @@ class AIProcessingMetadata(models.Model):
         abstract = True
 
 
-class HTMLRenderingMetadata(models.Model):
-    """Abstract base with HTML rendering metadata for document versions.
+class StructuredContentMetadata(models.Model):
+    """Abstract base with normalized structured content for a document version.
 
-    This is used so each version can have a clean HTML representation
-    ready for the frontend (from scraping or PDF→HTML pipelines).
+    This JSON stores the canonical representation used by search/IA and
+    the processed view in the frontend.
+
+    High-level schema example:
+    {
+        "blocks": [
+            {"id": "b1", "type": "heading", "level": 1, "text": "...", "page": 1},
+            {"id": "b2", "type": "paragraph", "text": "...", "page": 1},
+            {
+                "id": "t1",
+                "type": "table",
+                "title": "...",
+                "page": 2,
+                "columns": ["Col 1", "Col 2"],
+                "rows": [["a", "b"], ["c", "d"]],
+            },
+            ...
+        ]
+    }
     """
 
-    html_content = models.TextField(
-        blank=True,
-        help_text=(
-            "Contenido HTML completo listo para mostrar en el frontend "
-            "(limpio y seguro)."
-        ),
-    )
-
-    html_toc = models.JSONField(
+    structured_content = models.JSONField(
         default=dict,
         blank=True,
         help_text=(
-            "Índice/tabla de contenidos (títulos, anchors, secciones) en formato JSON "
-            "para navegación avanzada en el frontend."
+            "Representación estructurada normalizada del documento "
+            "(bloques: encabezados, párrafos, tablas, listas, etc.)."
         ),
     )
 
-    html_generated_at = models.DateTimeField(
+    structured_generated_at = models.DateTimeField(
         null=True,
         blank=True,
-        help_text="Momento en que se generó o actualizó la versión HTML.",
+        help_text="Momento en que se generó o actualizó el contenido estructurado.",
     )
 
-    is_html_ready = models.BooleanField(
+    is_structured_ready = models.BooleanField(
         default=False,
         help_text=(
-            "Indica si el HTML está listo para ser mostrado al usuario "
-            "(pipeline de conversión terminado correctamente)."
+            "Indica si el contenido estructurado está listo para ser usado "
+            "en RAG y en la vista procesada."
         ),
     )
 
-    html_error = models.TextField(
+    structured_error = models.TextField(
         blank=True,
-        help_text=(
-            "Mensaje de error si la generación/conversión a HTML falló "
-            "(útil para debugging)."
-        ),
+        help_text="Mensaje de error si falló el pipeline de contenido estructurado.",
     )
 
     class Meta:
@@ -307,7 +311,11 @@ class Document(DocumentVersioningMetadata, NormativeDocumentMetadata):
 
     @property
     def is_official(self) -> bool:
-        """Whether this document belongs to an official MINEDU category."""
+        """Whether this document belongs to an official MINEDU category.
+
+        Returns:
+            bool: True when the category is marked as official.
+        """
 
         return self.category.is_official
 
@@ -327,13 +335,16 @@ def document_file_path(instance: "DocumentVersion", filename: str) -> str:
     return f"documents/{instance.document_id}/{timestamp}_{filename}"
 
 
-class DocumentVersion(FileMetadata, AIProcessingMetadata, HTMLRenderingMetadata):
+class DocumentVersion(
+    FileMetadata,
+    AIProcessingMetadata,
+    StructuredContentMetadata,
+):
     """Represents a single version of a document.
 
     Each version keeps:
     - the original file,
-    - extracted plain text (for IA/indexing),
-    - an optional HTML representation for rich frontend display.
+    - a structured JSON representation (blocks) used as source of truth.
     """
 
     document = models.ForeignKey(
@@ -383,8 +394,22 @@ class DocumentVersion(FileMetadata, AIProcessingMetadata, HTMLRenderingMetadata)
         return f"{self.document.title} v{self.pk} [{self.status}]"
 
 
+class DocumentChunkType(models.TextChoices):
+    """Type of chunk used for IA and search."""
+
+    PARAGRAPH = "PARAGRAPH", "Párrafo"
+    HEADING = "HEADING", "Encabezado"
+    TABLE = "TABLE", "Tabla"
+    LIST = "LIST", "Lista"
+    OTHER = "OTHER", "Otro"
+
+
 class DocumentChunk(models.Model):
-    """Represents a single text chunk derived from a DocumentVersion."""
+    """Represents a single text chunk derived from a DocumentVersion.
+
+    This model is the unit used for semantic search (vector index) and
+    RAG-style retrieval.
+    """
 
     version = models.ForeignKey(
         DocumentVersion,
@@ -397,7 +422,17 @@ class DocumentChunk(models.Model):
     )
 
     content = models.TextField(
-        help_text="Texto del fragmento.",
+        help_text=(
+            "Texto del fragmento listo para IA "
+            "(párrafo, encabezado, tabla en markdown, etc.)."
+        ),
+    )
+
+    chunk_type = models.CharField(
+        max_length=20,
+        choices=DocumentChunkType.choices,
+        default=DocumentChunkType.PARAGRAPH,
+        help_text="Tipo de fragmento (párrafo, tabla, encabezado, etc.).",
     )
 
     token_count = models.PositiveIntegerField(
@@ -409,7 +444,16 @@ class DocumentChunk(models.Model):
     metadata = models.JSONField(
         default=dict,
         blank=True,
-        help_text="Metadatos opcionales (páginas, secciones, etc.).",
+        help_text="Metadatos opcionales (página, sección, ids de bloque, etc.).",
+    )
+
+    embedding = VectorField(
+        null=True,
+        blank=True,
+        help_text=(
+            "Vector de embedding para búsqueda semántica (pgvector). "
+            "La dimensión se configura a nivel de base de datos."
+        ),
     )
 
     created_at = models.DateTimeField(default=timezone.now)
@@ -420,3 +464,30 @@ class DocumentChunk(models.Model):
 
     def __str__(self) -> str:
         return f"Fragmento {self.index} de {self.version}"
+
+    @property
+    def page(self) -> Optional[int]:
+        """Return the page number from metadata if present.
+
+        Returns:
+            Optional[int]: Page number or None.
+        """
+        page = self.metadata.get("page")
+
+        return int(page) if page is not None else None
+
+    def to_rag_payload(self) -> Dict[str, Any]:
+        """Return a minimal payload used when building RAG contexts.
+
+        Returns:
+            Dict[str, Any]: Dictionary with content and basic metadata.
+        """
+        payload: Dict[str, Any] = {
+            "version_id": self.version_id,
+            "chunk_index": self.index,
+            "content": self.content,
+            "chunk_type": self.chunk_type,
+            "metadata": self.metadata,
+        }
+
+        return payload

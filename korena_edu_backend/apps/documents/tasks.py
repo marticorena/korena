@@ -1,181 +1,33 @@
-import html as html_lib
 import logging
-import re
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List
 
 from django.utils import timezone
 
 from celery import shared_task
-import fitz  # type: ignore[import]
-import mammoth
 
 from apps.core.metrics import track_celery_task
-from apps.documents.models import DocumentVersion
+from apps.documents.models import DocumentChunk, DocumentChunkType, DocumentVersion
+from apps.documents.utils.chunking import build_chunks_from_structured
+from apps.documents.utils.docx_to_structured import parse_docx_to_structured
+
+# TODO: Implement these utilities in apps/documents/utils/...
+from apps.documents.utils.pdf_to_structured import parse_pdf_to_structured
 
 logger = logging.getLogger(__name__)
 
 
-def _render_pdf_to_html(path: str) -> Tuple[str, str, Dict[str, object]]:
-    """Render a PDF file to simple HTML and plain text.
-
-    The HTML is intentionally simple:
-    - One <section> per page
-    - Each page has an <h2> and a <pre> with escaped text
-    The TOC is page-based (Página 1, Página 2, ...).
-
-    Args:
-        path: Absolute path to the PDF file on disk.
-
-    Returns:
-        Tuple[str, str, Dict[str, object]]: (html_content, extracted_text, toc).
-    """
-
-    document = fitz.open(path)
-    body_parts: List[str] = []
-    text_parts: List[str] = []
-    toc_pages: List[Dict[str, object]] = []
-
-    for page_index in range(len(document)):
-        page = document[page_index]
-        page_number = page_index + 1
-
-        raw_text = page.get_text("text") or ""
-        text_parts.append(raw_text.strip())
-
-        anchor = f"page-{page_number}"
-        toc_pages.append(
-            {
-                "label": f"Página {page_number}",
-                "anchor": anchor,
-                "page": page_number,
-            },
-        )
-
-        safe_text = html_lib.escape(raw_text)
-        section_html = (
-            f'<section id="{anchor}">'
-            f"<h2>Página {page_number}</h2>"
-            f"<pre>{safe_text}</pre>"
-            f"</section>"
-        )
-        body_parts.append(section_html)
-
-    html_body = "\n".join(body_parts)
-    full_html = f"<article>{html_body}</article>"
-    extracted_text = "\n\n".join([part for part in text_parts if part])
-
-    toc: Dict[str, object] = {
-        "type": "pages",
-        "items": toc_pages,
-    }
-
-    return full_html, extracted_text, toc
-
-
-def _render_docx_to_html(path: str) -> Tuple[str, str, Dict[str, object]]:
-    """Render a DOCX file to HTML and plain text using mammoth.
-
-    Mammoth already produces clean, semantic HTML. This helper:
-    - Converts DOCX → HTML.
-    - Injects anchors for headings (h1–h6) to build a TOC.
-    - Produces a basic TOC based on headings.
-    - Derives a plain-text version by stripping tags.
-
-    Args:
-        path: Absolute path to the DOCX file on disk.
-
-    Returns:
-        Tuple[str, str, Dict[str, object]]: (html_content, extracted_text, toc).
-    """
-
-    with open(path, "rb") as docx_file:
-        result = mammoth.convert_to_html(docx_file)
-
-    html_content = result.value or ""
-
-    # Build TOC based on headings (h1–h6).
-    headings: List[Dict[str, object]] = []
-    pattern = re.compile(
-        r"<h([1-6])([^>]*)>(.*?)</h\1>",
-        re.IGNORECASE | re.DOTALL,
-    )
-
-    # We will inject <span id="heading-{n}"></span> before each heading.
-    def _strip_tags(text: str) -> str:
-        """Remove HTML tags from a string."""
-
-        cleaned = re.sub(r"<[^>]+>", "", text)
-        cleaned = re.sub(r"\s+", " ", cleaned)
-
-        return cleaned.strip()
-
-    current_html = html_content
-    new_html_parts: List[str] = []
-    last_end = 0
-    index_counter = 1
-
-    for match in pattern.finditer(html_content):
-        start, end = match.span()
-        level_str = match.group(1)
-        inner_html = match.group(3)
-
-        level = int(level_str)
-        title_text = _strip_tags(inner_html)
-        anchor = f"heading-{index_counter}"
-
-        # Append previous chunk.
-        new_html_parts.append(current_html[last_end:start])
-
-        heading_html = match.group(0)
-        anchor_span = f'<span id="{anchor}"></span>'
-        new_html_parts.append(anchor_span + heading_html)
-
-        headings.append(
-            {
-                "label": title_text,
-                "anchor": anchor,
-                "level": level,
-            },
-        )
-
-        last_end = end
-        index_counter += 1
-
-    new_html_parts.append(current_html[last_end:])
-    final_html = "".join(new_html_parts) if headings else html_content
-
-    # Extract plain text from final_html.
-    text_no_tags = re.sub(r"<[^>]+>", " ", final_html)
-    text_no_tags = re.sub(r"\s+", " ", text_no_tags).strip()
-
-    toc: Dict[str, object] = {
-        "type": "headings",
-        "items": headings,
-    }
-
-    return final_html, text_no_tags, toc
-
-
 @shared_task(bind=True, max_retries=3)
-@track_celery_task("process_document_version_for_html")
-def process_document_version_for_html(self, version_id: int) -> None:
-    """Generate HTML representation for a DocumentVersion.
-
-    Args:
-        self: Celery task instance (used for retry logic).
-        version_id (int): Primary key of the DocumentVersion to process.
-
-    Raises:
-        self.retry: Re-raised when an email fails, triggering a retry.
+@track_celery_task("process_document_version_for_structure")
+def process_document_version_for_structure(self, version_id: int) -> None:
+    """Build structured_content JSON for a DocumentVersion.
 
     This task:
     - Loads the version.
     - Detects extension (.pdf / .docx).
-    - Delegates to the corresponding renderer.
-    - Updates HTML, TOC, extracted_text and timestamps.
-    - Marks is_html_ready or stores an error message in Spanish.
+    - Delegates parsing to the corresponding structured parser.
+    - Updates structured_content, timestamps and flags.
+    - Sets is_structured_ready or stores a Spanish error message.
     """
-
     version: DocumentVersion | None = None
 
     try:
@@ -186,44 +38,42 @@ def process_document_version_for_html(self, version_id: int) -> None:
         if "." in file_name:
             extension = file_name.lower().rsplit(".", 1)[-1]
 
-        # Only accept PDF and DOCX.
         if extension not in {"pdf", "docx"}:
-            version.is_html_ready = False
-            version.html_error = f"Tipo de archivo no soportado para vista HTML: .{extension or 'desconocido'}."
+            version.is_structured_ready = False
+            version.structured_error = (
+                f"Tipo de archivo no soportado para procesamiento estructurado: "
+                f".{extension or 'desconocido'}."
+            )
             version.save(
                 update_fields=[
-                    "is_html_ready",
-                    "html_error",
+                    "is_structured_ready",
+                    "structured_error",
                 ],
             )
-
             return
 
         file_path = version.file.path
 
         if extension == "pdf":
-            html_content, extracted_text, toc = _render_pdf_to_html(file_path)
+            structured_content: Dict[str, Any] = parse_pdf_to_structured(file_path)
         else:
-            html_content, extracted_text, toc = _render_docx_to_html(file_path)
+            structured_content = parse_docx_to_structured(file_path)
 
-        version.html_content = html_content
-        version.html_toc = toc
-        if extracted_text:
-            version.extracted_text = extracted_text
-            version.extracted_at = timezone.now()
-        version.is_html_ready = True
-        version.html_error = ""
-        version.html_generated_at = timezone.now()
+        # Defensive default
+        if not isinstance(structured_content, dict):
+            structured_content = {}
+
+        version.structured_content = structured_content
+        version.structured_generated_at = timezone.now()
+        version.is_structured_ready = True
+        version.structured_error = ""
 
         version.save(
             update_fields=[
-                "html_content",
-                "html_toc",
-                "extracted_text",
-                "extracted_at",
-                "is_html_ready",
-                "html_error",
-                "html_generated_at",
+                "structured_content",
+                "structured_generated_at",
+                "is_structured_ready",
+                "structured_error",
             ],
         )
 
@@ -234,21 +84,174 @@ def process_document_version_for_html(self, version_id: int) -> None:
         return
 
     except Exception as exc:
-        # Persist error on the version so it is visible from the admin/UI.
         if version is not None:
-            version.is_html_ready = False
-            version.html_error = str(exc)
+            version.is_structured_ready = False
+            version.structured_error = str(exc)
             version.save(
                 update_fields=[
-                    "is_html_ready",
-                    "html_error",
+                    "is_structured_ready",
+                    "structured_error",
                 ],
             )
 
         logger.exception(
-            "Error processing document version (DocumentVersion id=%s).",
+            "Error processing structured content (DocumentVersion id=%s).",
             version_id,
         )
 
         # Retry after 5 seconds
+        raise self.retry(exc=exc, countdown=5)
+
+
+@shared_task(bind=True, max_retries=3)
+@track_celery_task("build_chunks_for_document_version")
+def build_chunks_for_document_version(self, version_id: int) -> None:
+    """Create DocumentChunk rows from structured_content.
+
+    This task:
+    - Requires structured_content to be ready.
+    - Deletes existing chunks for that version (idempotent).
+    - Uses build_chunks_from_structured(...) to obtain chunk specs.
+    - Bulk-creates DocumentChunk rows.
+    - Marks is_indexed or stores indexing_error.
+    """
+    version: DocumentVersion | None = None
+
+    try:
+        version = DocumentVersion.objects.get(id=version_id)
+
+        if not version.is_structured_ready or not version.structured_content:
+            version.is_indexed = False
+            version.indexing_error = (
+                "El contenido estructurado aún no está listo para generar fragmentos."
+            )
+            version.save(
+                update_fields=[
+                    "is_indexed",
+                    "indexing_error",
+                ],
+            )
+            return
+
+        # Remove previous chunks to keep the operation idempotent.
+        DocumentChunk.objects.filter(version=version).delete()
+
+        raw_chunks: List[Dict[str, Any]] = build_chunks_from_structured(
+            version.structured_content
+        )
+
+        chunk_objects: List[DocumentChunk] = []
+
+        for raw in raw_chunks:
+            chunk_objects.append(
+                DocumentChunk(
+                    version=version,
+                    index=raw.get("index", 0),
+                    content=raw.get("content", ""),
+                    chunk_type=raw.get("chunk_type", DocumentChunkType.PARAGRAPH),
+                    token_count=raw.get("token_count"),
+                    metadata=raw.get("metadata", {}),
+                ),
+            )
+
+        if chunk_objects:
+            DocumentChunk.objects.bulk_create(chunk_objects)
+
+        version.is_indexed = True
+        version.indexing_error = ""
+
+        version.save(
+            update_fields=[
+                "is_indexed",
+                "indexing_error",
+            ],
+        )
+
+        return
+
+    except DocumentVersion.DoesNotExist:
+        return
+
+    except Exception as exc:
+        if version is not None:
+            version.is_indexed = False
+            version.indexing_error = str(exc)
+            version.save(
+                update_fields=[
+                    "is_indexed",
+                    "indexing_error",
+                ],
+            )
+
+        logger.exception(
+            "Error building chunks (DocumentVersion id=%s).",
+            version_id,
+        )
+
+        raise self.retry(exc=exc, countdown=5)
+
+
+@shared_task(bind=True, max_retries=3)
+@track_celery_task("generate_embeddings_for_document_version")
+def generate_embeddings_for_document_version(self, version_id: int) -> None:
+    """Generate embeddings for all chunks of a version.
+
+    NOTE:
+        This assumes you have some embedding backend (OpenAI, local model, etc.)
+        exposed via a helper function.
+
+        Expected helper signature (implement this yourself):
+
+        >>> from apps.documents.utils.embeddings import get_embedding
+        >>> def get_embedding(text: str) -> list[float]: ...
+
+    The task:
+    - Iterates chunks without embedding.
+    - Calls get_embedding(content).
+    - Persists embeddings in the VectorField.
+    """
+    from apps.documents.utils.embeddings import get_embedding  # local import
+
+    try:
+        version = DocumentVersion.objects.get(id=version_id)
+    except DocumentVersion.DoesNotExist:
+        return
+
+    try:
+        chunks = DocumentChunk.objects.filter(
+            version=version,
+            embedding__isnull=True,
+        ).order_by("index")
+
+        if not chunks.exists():
+            return
+
+        updated_chunks: list[DocumentChunk] = []
+
+        for chunk in chunks:
+            try:
+                embedding = get_embedding(chunk.content)
+                chunk.embedding = embedding
+                updated_chunks.append(chunk)
+            except Exception as embed_exc:
+                logger.exception(
+                    "Error generating embedding for chunk id=%s: %s",
+                    chunk.id,
+                    embed_exc,
+                )
+                # We do NOT fail the entire task for one bad chunk.
+
+        if updated_chunks:
+            DocumentChunk.objects.bulk_update(
+                updated_chunks,
+                ["embedding"],
+            )
+
+        return
+
+    except Exception as exc:
+        logger.exception(
+            "Error generating embeddings (DocumentVersion id=%s).",
+            version_id,
+        )
         raise self.retry(exc=exc, countdown=5)

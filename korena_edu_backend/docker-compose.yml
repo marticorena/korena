@@ -42,7 +42,9 @@ services:
       - django-app-network
 
   postgres:
-    image: postgres:16
+    build:
+      context: .
+      dockerfile: postgres/Dockerfile
     ports:
       - "5432:5432"
     environment:
@@ -51,6 +53,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d
     networks:
       - django-app-network
 
