@@ -1,5 +1,3 @@
-# apps/documents/utils/docx_to_structured.py
-
 from typing import Any, Dict, List
 
 from docx import Document as DocxDocument
@@ -97,9 +95,7 @@ def parse_docx_to_structured(path: str) -> Dict[str, Any]:
     return {"blocks": blocks}
 
 
-# ---------------------------------------------------------------------------
 # Helpers
-# ---------------------------------------------------------------------------
 
 
 def _iter_block_items(parent: Any):

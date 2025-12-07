@@ -8,7 +8,7 @@ from apps.core.endpoints.permissions import IsAuthenticatedGraphql, IsVerifiedGr
 from apps.core.messages import ERROR_MESSAGES
 from apps.core.metrics import documents_created_total
 from apps.documents.graphql.types import DocumentCategoryType, DocumentType
-from apps.documents.models import Document, DocumentCategory
+from apps.documents.models.documents import Document, DocumentCategory
 from apps.schools.models import School as SchoolModel
 from config.graphql.extensions import GraphQLOperationMetricsExtension
 

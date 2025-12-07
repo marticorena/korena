@@ -2,7 +2,7 @@ from typing import Any, Dict
 
 from rest_framework import serializers
 
-from apps.documents.models import DocumentVersion
+from apps.documents.models.documents import DocumentVersion
 
 
 class DocumentVersionSerializer(serializers.ModelSerializer):
@@ -29,12 +29,10 @@ class DocumentVersionSerializer(serializers.ModelSerializer):
             "mime_type",
             "checksum",
             "page_count",
-            "language",
             # IA processing metadata (AIProcessingMetadata mixin)
             "ai_summary",
             "is_indexed",
             "indexing_error",
-            "extracted_at",
         ]
 
         read_only_fields = [
@@ -46,11 +44,9 @@ class DocumentVersionSerializer(serializers.ModelSerializer):
             "mime_type",
             "checksum",
             "page_count",
-            "language",
             "ai_summary",
             "is_indexed",
             "indexing_error",
-            "extracted_at",
         ]
 
     def to_representation(self, instance: DocumentVersion) -> Dict[str, Any]:

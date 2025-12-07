@@ -1,7 +1,6 @@
 from django.contrib.auth import get_user_model
 
-from apps.documents.models import Document as DocumentModel
-from apps.documents.models import DocumentCategory, DocumentLevel
+from apps.documents.models.documents import Document, DocumentCategory, DocumentLevel
 
 User = get_user_model()
 
@@ -26,9 +25,9 @@ def helper_test_create_document(
     category: DocumentCategory,
     title: str = "Documento de prueba",
     description: str = "Descripción",
-) -> DocumentModel:
+) -> Document:
     """Create a Document for tests."""
-    document = DocumentModel.objects.create(
+    document = Document.objects.create(
         owner=owner,
         school=None,
         category=category,

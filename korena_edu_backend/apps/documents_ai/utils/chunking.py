@@ -2,10 +2,12 @@ from typing import Any, Dict, Iterable, List
 
 from django.db import transaction
 
-from apps.documents.models import (
-    DocumentChunk,
-    DocumentChunkType,
+from apps.documents.models.documents import (
     DocumentVersion,
+)
+from apps.documents_ai.models.documents_ai import (
+    DocumentChunk,
+    DocumentChunkCategory,
 )
 
 
@@ -54,33 +56,33 @@ def build_chunks_from_structured(
         page = block.get("page")
 
         text: str = ""
-        chunk_type: str = DocumentChunkType.PARAGRAPH
+        chunk_type: str = DocumentChunkCategory.PARAGRAPH
 
         if b_type == "heading":
             text = (block.get("text") or "").strip()
-            chunk_type = DocumentChunkType.HEADING
+            chunk_type = DocumentChunkCategory.HEADING
 
         elif b_type == "paragraph":
             text = (block.get("text") or "").strip()
-            chunk_type = DocumentChunkType.PARAGRAPH
+            chunk_type = DocumentChunkCategory.PARAGRAPH
 
         elif b_type == "list":
             # Represent list item as text; if you later need bullets you can
             # prefix with "- " or similar.
             text = (block.get("text") or "").strip()
-            chunk_type = DocumentChunkType.LIST
+            chunk_type = DocumentChunkCategory.LIST
 
         elif b_type == "table":
             text = _table_to_markdown(
                 columns=block.get("columns") or [],
                 rows=block.get("rows") or [],
             )
-            chunk_type = DocumentChunkType.TABLE
+            chunk_type = DocumentChunkCategory.TABLE
 
         else:
             # Fallback, just store whatever text we have.
             text = (block.get("text") or "").strip()
-            chunk_type = DocumentChunkType.OTHER
+            chunk_type = DocumentChunkCategory.OTHER
 
         if not text:
             continue
@@ -127,9 +129,7 @@ def build_chunks_from_structured(
     return created_chunks
 
 
-# ---------------------------------------------------------------------------
 # Helpers
-# ---------------------------------------------------------------------------
 
 
 def _split_long_text(text: str, *, max_chars: int) -> Iterable[str]:

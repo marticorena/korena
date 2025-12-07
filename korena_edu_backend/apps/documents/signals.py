@@ -3,11 +3,13 @@ from typing import Any
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
-from apps.documents.models import DocumentVersion
+from apps.documents.models.documents import DocumentVersion
 from apps.documents.tasks import (
+    process_document_version_for_structure,
+)
+from apps.documents_ai.tasks import (
     build_chunks_for_document_version,
     generate_embeddings_for_document_version,
-    process_document_version_for_structure,
 )
 
 

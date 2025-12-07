@@ -21,7 +21,11 @@ from apps.core.metrics import (
     documents_by_level_total,
 )
 from apps.documents.api.serializers import DocumentVersionSerializer
-from apps.documents.models import Document, DocumentVersion, DocumentVersionStatus
+from apps.documents.models.documents import (
+    Document,
+    DocumentVersion,
+    DocumentVersionStatus,
+)
 
 
 class DocumentVersionUploadView(APIView):

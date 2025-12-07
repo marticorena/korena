@@ -4,7 +4,7 @@ from typing import Optional
 import strawberry.django
 
 from apps.accounts.graphql.types import UserType
-from apps.documents.models import Document, DocumentCategory, DocumentVersion
+from apps.documents.models.documents import Document, DocumentCategory, DocumentVersion
 
 
 @strawberry.django.type(DocumentCategory)
@@ -34,11 +34,9 @@ class DocumentVersionType:
     original_filename: str
     mime_type: str
     page_count: Optional[int]
-    language: str
 
     # IA processing metadata
     ai_summary: str
-    extracted_at: Optional[datetime]
     is_indexed: bool
     indexing_error: str
 

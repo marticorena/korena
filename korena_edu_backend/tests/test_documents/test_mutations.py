@@ -5,8 +5,7 @@ from django.contrib.auth import get_user_model
 import pytest
 
 from apps.core.messages import ERROR_MESSAGES
-from apps.documents.models import Document as DocumentModel
-from apps.documents.models import DocumentCategory, DocumentLevel
+from apps.documents.models.documents import Document, DocumentCategory, DocumentLevel
 from tests.test_documents.graphql_strings import (
     CREATE_DOCUMENT_CATEGORY_MUTATION,
     CREATE_DOCUMENT_MUTATION,
@@ -50,7 +49,7 @@ def test_create_document_creates_new_document_for_verified_user(
     assert document_data["category"]["code"] == category.code
     assert document_data["category"]["level"] == category.level
 
-    document = DocumentModel.objects.get(pk=document_data["id"])
+    document = Document.objects.get(pk=document_data["id"])
 
     assert document.owner == verified_user
     assert document.category == category
@@ -83,7 +82,7 @@ def test_create_document_uses_category_name_as_default_title(
 
     assert document_data["title"] == category.name
 
-    document = DocumentModel.objects.get(pk=document_data["id"])
+    document = Document.objects.get(pk=document_data["id"])
 
     assert document.title == category.name
 

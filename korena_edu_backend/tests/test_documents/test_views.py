@@ -13,9 +13,11 @@ from apps.core.metrics import (
     documents_by_level_total,
 )
 from apps.core.utils import get_metric_value
-from apps.documents.models import DocumentLevel
-from apps.documents.models import DocumentVersion as DocumentVersionModel
-from apps.documents.models import DocumentVersionStatus
+from apps.documents.models.documents import (
+    DocumentLevel,
+    DocumentVersion,
+    DocumentVersionStatus,
+)
 from tests.helpers import auth_headers_for
 from tests.test_documents.helpers import (
     helper_test_create_document,
@@ -44,7 +46,7 @@ def test_rest_upload_document_version_creates_new_version_and_updates_current(
         content_type="application/pdf",
     )
 
-    versions_before = DocumentVersionModel.objects.count()
+    versions_before = DocumentVersion.objects.count()
     uploaded_before = get_metric_value(document_versions_uploaded_total)
     by_level_before = get_metric_value(
         documents_by_level_total,
@@ -69,8 +71,8 @@ def test_rest_upload_document_version_creates_new_version_and_updates_current(
     version_data = payload["version"]
     document_id = payload["document_id"]
 
-    assert DocumentVersionModel.objects.count() == versions_before + 1
-    version = DocumentVersionModel.objects.get(pk=version_data["id"])
+    assert DocumentVersion.objects.count() == versions_before + 1
+    version = DocumentVersion.objects.get(pk=version_data["id"])
 
     assert version.document_id == document.id
     assert version.status == DocumentVersionStatus.DRAFT
@@ -112,7 +114,7 @@ def test_rest_upload_document_version_requires_authentication(
         kwargs={"document_id": document.id},
     )
 
-    versions_before = DocumentVersionModel.objects.count()
+    versions_before = DocumentVersion.objects.count()
 
     response = client.post(
         url,
@@ -130,7 +132,7 @@ def test_rest_upload_document_version_requires_authentication(
     assert error["message"] == ERROR_MESSAGES["auth.not_authenticated"]
     assert error["path"] == ["documentVersionUpload"]
 
-    assert DocumentVersionModel.objects.count() == versions_before
+    assert DocumentVersion.objects.count() == versions_before
 
 
 def test_rest_upload_document_version_requires_verified_user(
@@ -200,7 +202,7 @@ def test_rest_upload_document_version_fails_when_document_not_found_or_not_owned
         kwargs={"document_id": document.id},
     )
 
-    versions_before = DocumentVersionModel.objects.count()
+    versions_before = DocumentVersion.objects.count()
     headers = auth_headers_for(verified_user)
 
     response = client.post(
@@ -220,7 +222,7 @@ def test_rest_upload_document_version_fails_when_document_not_found_or_not_owned
     assert error["message"] == ERROR_MESSAGES["documents.not_found_or_not_owned"]
     assert error["path"] == ["documentVersionUpload"]
 
-    assert DocumentVersionModel.objects.count() == versions_before
+    assert DocumentVersion.objects.count() == versions_before
 
 
 def test_rest_upload_document_version_requires_file(
@@ -238,7 +240,7 @@ def test_rest_upload_document_version_requires_file(
         kwargs={"document_id": document.id},
     )
 
-    versions_before = DocumentVersionModel.objects.count()
+    versions_before = DocumentVersion.objects.count()
     headers = auth_headers_for(verified_user)
 
     response = client.post(
@@ -258,4 +260,4 @@ def test_rest_upload_document_version_requires_file(
     assert error["message"] == ERROR_MESSAGES["upload.no_file"]
     assert error["path"] == ["documentVersionUpload"]
 
-    assert DocumentVersionModel.objects.count() == versions_before
+    assert DocumentVersion.objects.count() == versions_before

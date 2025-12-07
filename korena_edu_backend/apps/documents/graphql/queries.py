@@ -7,8 +7,7 @@ from strawberry.types import Info
 from apps.core.endpoints.permissions import IsAuthenticatedGraphql, IsVerifiedGraphql
 from apps.core.messages import ERROR_MESSAGES
 from apps.documents.graphql.types import DocumentType
-from apps.documents.models import Document as DocumentModel
-from apps.documents.models import DocumentLevel
+from apps.documents.models.documents import Document, DocumentLevel
 
 
 @strawberry.type
@@ -37,7 +36,7 @@ class DocumentQueries:
         """
         user = info.context.request.user
 
-        queryset = DocumentModel.objects.filter(owner=user, is_archived=False)
+        queryset = Document.objects.filter(owner=user, is_archived=False)
 
         if level is not None:
             if level not in DocumentLevel.values:
@@ -68,12 +67,12 @@ class DocumentQueries:
         user = info.context.request.user
 
         try:
-            document = DocumentModel.objects.get(
+            document = Document.objects.get(
                 pk=id,
                 owner=user,
                 is_archived=False,
             )
-        except DocumentModel.DoesNotExist as exc:
+        except Document.DoesNotExist as exc:
             raise GraphQLError(
                 ERROR_MESSAGES["documents.not_found_or_not_owned"],
             ) from exc
