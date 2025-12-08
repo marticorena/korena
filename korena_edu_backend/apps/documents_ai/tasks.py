@@ -10,8 +10,8 @@ from apps.core.tasks import dispatch_after_commit
 from apps.documents.models.documents import DocumentVersion
 from apps.documents_ai.models.choices import DocumentChunkCategory
 from apps.documents_ai.models.documents_ai import DocumentChunk
-from apps.documents_ai.parsers.docx_to_structured import parse_docx_to_structured
-from apps.documents_ai.parsers.pdf_to_structured import parse_pdf_to_structured
+from apps.documents_ai.parsers.docx_parser import parse_docx_to_structured
+from apps.documents_ai.parsers.pdf_parser import parse_pdf_to_structured
 from apps.documents_ai.services.chunking import build_chunks_from_structured
 from apps.documents_ai.services.embedding import get_embeddings
 

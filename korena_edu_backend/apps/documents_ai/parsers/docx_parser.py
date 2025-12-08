@@ -1,8 +1,14 @@
+# apps/documents_ai/services/parsers/docx_parser.py
+
+from __future__ import annotations
+
 from typing import Any, Dict, List
 
 from docx import Document as DocxDocument
 from docx.table import Table as DocxTable
 from docx.text.paragraph import Paragraph as DocxParagraph
+
+from .utils import postprocess_blocks
 
 
 def parse_docx_to_structured(path: str) -> Dict[str, Any]:
@@ -13,13 +19,8 @@ def parse_docx_to_structured(path: str) -> Dict[str, Any]:
         "blocks": [
             {"id": "b1", "type": "heading", "level": 1, "text": "...", "page": null},
             {"id": "b2", "type": "paragraph", "text": "...", "page": null},
-            {
-                "id": "b3",
-                "type": "table",
-                "columns": [...],
-                "rows": [...],
-                "page": null
-            },
+            {"id": "b3", "type": "list_item", "text": "...", "page": null},
+            {"id": "b4", "type": "table", "columns": [...], "rows": [...], "page": null},
             ...
         ]
     }
@@ -32,7 +33,6 @@ def parse_docx_to_structured(path: str) -> Dict[str, Any]:
     block_id = 1
 
     for item in _iter_block_items(doc):
-        # Paragraph block
         if isinstance(item, DocxParagraph):
             text = item.text.strip()
             if not text:
@@ -58,7 +58,7 @@ def parse_docx_to_structured(path: str) -> Dict[str, Any]:
                 blocks.append(
                     {
                         "id": f"b{block_id}",
-                        "type": "list",
+                        "type": "list_item",
                         "text": text,
                         "page": None,
                     }
@@ -66,7 +66,6 @@ def parse_docx_to_structured(path: str) -> Dict[str, Any]:
                 block_id += 1
                 continue
 
-            # Default: paragraph
             blocks.append(
                 {
                     "id": f"b{block_id}",
@@ -77,7 +76,6 @@ def parse_docx_to_structured(path: str) -> Dict[str, Any]:
             )
             block_id += 1
 
-        # Table block
         elif isinstance(item, DocxTable):
             table_struct = _parse_table(item)
             if table_struct["rows"]:
@@ -92,10 +90,14 @@ def parse_docx_to_structured(path: str) -> Dict[str, Any]:
                 )
                 block_id += 1
 
+    blocks = postprocess_blocks(blocks)
+
     return {"blocks": blocks}
 
 
-# Helpers
+# ---------------------------------------------------------------------------
+# DOCX helpers
+# ---------------------------------------------------------------------------
 
 
 def _iter_block_items(parent: Any):
@@ -137,13 +139,10 @@ def _classify_heading(style_name: str) -> (bool, int):
     if not style_name:
         return False, 0
 
-    # Typical Word styles: "Heading 1", "Heading 2", etc.
     if "heading" in style_name:
-        # Try to extract a level digit if present.
         for digit in range(1, 7):
             if str(digit) in style_name:
                 return True, digit
-
         return True, 1
 
     return False, 0
@@ -154,13 +153,10 @@ def _is_list_paragraph(style_name: str) -> bool:
     if not style_name:
         return False
 
-    # Common patterns for list styles in Word documents.
     if "bullet" in style_name:
         return True
     if "list" in style_name:
         return True
-
-    # "List Paragraph" is a very common style name.
     if style_name.strip() == "list paragraph":
         return True
 
