@@ -1,35 +1,34 @@
-# apps/documents_ai/services/parsers/docx_parser.py
-
-from __future__ import annotations
-
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 from docx import Document as DocxDocument
 from docx.table import Table as DocxTable
 from docx.text.paragraph import Paragraph as DocxParagraph
 
-from .utils import postprocess_blocks
+from apps.documents_ai.parsers.postprocess import postprocess_blocks
+
+Block = Dict[str, Any]
 
 
 def parse_docx_to_structured(path: str) -> Dict[str, Any]:
     """Extract a minimal structured representation from a DOCX file.
 
-    Returns a dict:
-    {
-        "blocks": [
-            {"id": "b1", "type": "heading", "level": 1, "text": "...", "page": null},
-            {"id": "b2", "type": "paragraph", "text": "...", "page": null},
-            {"id": "b3", "type": "list_item", "text": "...", "page": null},
-            {"id": "b4", "type": "table", "columns": [...], "rows": [...], "page": null},
-            ...
-        ]
-    }
-
     Note:
-        DOCX does not expose page numbers easily, so `page` is set to None.
+        DOCX does not expose page numbers, so "page" is set to None.
+
+    Returns:
+        Dict[str, Any]: A dict with the same structure as the PDF parser:
+            {
+                "blocks": [
+                    {"id": "b1", "type": "heading", "level": 1, "text": "...", "page": None},
+                    {"id": "b2", "type": "paragraph", "text": "...", "page": None},
+                    {"id": "b3", "type": "list_item", "text": "...", "page": None},
+                    {"id": "b4", "type": "table", "columns": [...], "rows": [...], "page": None},
+                    ...
+                ]
+            }
     """
     doc = DocxDocument(path)
-    blocks: List[Dict[str, Any]] = []
+    blocks: List[Block] = []
     block_id = 1
 
     for item in _iter_block_items(doc):
@@ -90,22 +89,13 @@ def parse_docx_to_structured(path: str) -> Dict[str, Any]:
                 )
                 block_id += 1
 
-    blocks = postprocess_blocks(blocks)
+    processed_blocks = postprocess_blocks(blocks)
 
-    return {"blocks": blocks}
-
-
-# ---------------------------------------------------------------------------
-# DOCX helpers
-# ---------------------------------------------------------------------------
+    return {"blocks": processed_blocks}
 
 
 def _iter_block_items(parent: Any):
-    """Yield paragraphs and tables in document order.
-
-    This walks the underlying XML so we preserve the actual order
-    of paragraphs and tables as they appear in the document body.
-    """
+    """Yield paragraphs and tables in document order."""
     from docx.oxml.table import CT_Tbl  # type: ignore
     from docx.oxml.text.paragraph import CT_P  # type: ignore
 
@@ -124,17 +114,19 @@ def _safe_style_name(paragraph: DocxParagraph) -> str:
         style = paragraph.style
         if style is None:
             return ""
+
         name = style.name or ""
+
         return str(name).lower()
     except Exception:
         return ""
 
 
-def _classify_heading(style_name: str) -> (bool, int):
+def _classify_heading(style_name: str) -> Tuple[bool, int]:
     """Determine if a paragraph style looks like a heading.
 
     Returns:
-        (is_heading, level)
+        Tuple[bool, int]: (is_heading, level).
     """
     if not style_name:
         return False, 0
@@ -143,6 +135,7 @@ def _classify_heading(style_name: str) -> (bool, int):
         for digit in range(1, 7):
             if str(digit) in style_name:
                 return True, digit
+
         return True, 1
 
     return False, 0
@@ -178,7 +171,7 @@ def _parse_table(table: DocxTable) -> Dict[str, List[List[str]]]:
 
     if rows:
         first_row = rows[0]
-        columns = [col if col else f"Col {i+1}" for i, col in enumerate(first_row)]
+        columns = [col if col else f"Col {i + 1}" for i, col in enumerate(first_row)]
         data_rows = rows[1:]
     else:
         columns = []
