@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from types import SimpleNamespace
 from typing import Any
 
@@ -150,6 +151,7 @@ def test_verify_token_invalid_returns_error(gql_client, anon_context):
     assert result.data is None
 
 
+@pytest.mark.django_db
 def test_register_user_creates_inactive_user_and_returns_token(
     exec_gql,
     monkeypatch: pytest.MonkeyPatch,
@@ -157,14 +159,31 @@ def test_register_user_creates_inactive_user_and_returns_token(
     """registerUser should create a new inactive user, log email and return a token."""
     sent = SimpleNamespace(called=False, email_id=None)
 
-    # Fake only the Celery async dispatch, not the email generation.
+    # Fake Celery task delay to capture the EmailLog id.
     def fake_delay(email_log_id: int) -> None:
         sent.called = True
         sent.email_id = email_log_id
 
+        return
+
     monkeypatch.setattr(
         "apps.accounts.graphql.mutations.send_email_task.delay",
         fake_delay,
+    )
+
+    # Bypass transaction.on_commit in tests: run immediately.
+    def immediate_dispatch(
+        func: Callable[..., Any],
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
+        func(*args, **kwargs)
+
+        return
+
+    monkeypatch.setattr(
+        "apps.accounts.graphql.mutations.dispatch_after_commit",
+        immediate_dispatch,
     )
 
     email = "new.user@example.com"

@@ -37,7 +37,7 @@ class DocumentVersionType:
 
     # IA processing metadata
     is_chunking_ready: bool
-    indexing_error: str
+    chunking_error: str
 
     source: str
 

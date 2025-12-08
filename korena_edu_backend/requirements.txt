@@ -301,8 +301,10 @@ tzdata==2025.2
     # via
     #   django
     #   kombu
-urllib3==2.5.0
-    # via requests
+urllib3==2.6.0
+    # via
+    #   -r requirements.in
+    #   requests
 vine==5.1.0
     # via
     #   amqp

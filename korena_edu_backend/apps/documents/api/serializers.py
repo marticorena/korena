@@ -31,7 +31,7 @@ class DocumentVersionSerializer(serializers.ModelSerializer):
             "page_count",
             # IA processing metadata (AIProcessingMetadata mixin)
             "is_chunking_ready",
-            "indexing_error",
+            "chunking_error",
         ]
 
         read_only_fields = [
@@ -44,7 +44,7 @@ class DocumentVersionSerializer(serializers.ModelSerializer):
             "checksum",
             "page_count",
             "is_chunking_ready",
-            "indexing_error",
+            "chunking_error",
         ]
 
     def to_representation(self, instance: DocumentVersion) -> Dict[str, Any]:

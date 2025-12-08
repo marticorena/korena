@@ -41,6 +41,9 @@ bcrypt==5.0.0
 prometheus-client>=0.23,<0.24
 premailer==3.10.0
 
+# SECURITY PATCHES (Dependabot)
+urllib3>=2.6.0
+
 # DEVELOPMENT
 black==25.11.0
 isort==7.0.0

@@ -26,7 +26,14 @@ class DocumentChunkInline(admin.TabularInline):
     ordering = ("index",)
 
     def page_display(self, obj: DocumentChunk) -> str:
-        """Return a human-friendly page number from metadata."""
+        """Return a human-friendly page number from metadata.
+
+        Args:
+            obj: DocumentChunk instance.
+
+        Returns:
+            str: Page number as string or "-" if not available.
+        """
         page = obj.page
 
         return str(page) if page is not None else "-"
@@ -63,13 +70,21 @@ class DocumentChunkAdmin(admin.ModelAdmin):
     ordering = ("version_id", "index")
     list_select_related = ("version", "version__document")
 
-    readonly_fields = (
-        "created_at",
-        "embedding",
-    )
+    # Important: do NOT include `embedding` here to avoid pgvector / numpy truth-value issues.
+    readonly_fields = ("created_at",)
+
+    # Completely hide the raw vector field from the form.
+    exclude = ("embedding",)
 
     def page_display(self, obj: DocumentChunk) -> str:
-        """Return a human-friendly page number from metadata."""
+        """Return a human-friendly page number from metadata.
+
+        Args:
+            obj: DocumentChunk instance.
+
+        Returns:
+            str: Page number as string or "-" if not available.
+        """
         page = obj.page
 
         return str(page) if page is not None else "-"
@@ -77,7 +92,16 @@ class DocumentChunkAdmin(admin.ModelAdmin):
     page_display.short_description = "Página"
 
     def has_embedding(self, obj: DocumentChunk) -> bool:
-        """Return True when the chunk already has an embedding."""
+        """Return True when the chunk already has an embedding.
+
+        Args:
+            obj: DocumentChunk instance.
+
+        Returns:
+            bool: True if embedding exists, False otherwise.
+        """
+        # pgvector VectorField may return an array-like object; we only
+        # care about None vs non-None, not its truthiness.
         return obj.embedding is not None
 
     has_embedding.boolean = True
