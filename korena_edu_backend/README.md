@@ -91,7 +91,7 @@ Install pre-commit hooks:
 Clean migrations:
 
 ```bash
-  Get-ChildItem -Path .\apps -Recurse -Filter "*.py" | Where-Object { $_.Directory.Name -eq "migrations" -and $_.Name -ne "__init__.py" } | Remove-Item -Force
+  Get-ChildItem -Path .\apps -Recurse -Filter "*.py" | Where-Object { $_.Directory.Name -eq "migrations" -and $_.Name -ne "__init__.py" -and -not ($_.FullName -like "*apps\documents_ai\migrations\0001_initial.py") } | Remove-Item -Force
 ```
 ```bash
   docker compose exec postgres psql -U korena -d postgres -v ON_ERROR_STOP=1 -c "\set AUTOCOMMIT on" -c "REVOKE CONNECT ON DATABASE korena FROM public;" -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='korena' AND pid <> pg_backend_pid();" -c "DROP DATABASE IF EXISTS korena;"
