@@ -36,8 +36,7 @@ class DocumentVersionType:
     page_count: Optional[int]
 
     # IA processing metadata
-    ai_summary: str
-    is_indexed: bool
+    is_chunking_ready: bool
     indexing_error: str
 
     source: str

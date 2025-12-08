@@ -28,6 +28,7 @@ class DocumentChunkInline(admin.TabularInline):
     def page_display(self, obj: DocumentChunk) -> str:
         """Return a human-friendly page number from metadata."""
         page = obj.page
+
         return str(page) if page is not None else "-"
 
     page_display.short_description = "Página"
@@ -70,6 +71,7 @@ class DocumentChunkAdmin(admin.ModelAdmin):
     def page_display(self, obj: DocumentChunk) -> str:
         """Return a human-friendly page number from metadata."""
         page = obj.page
+
         return str(page) if page is not None else "-"
 
     page_display.short_description = "Página"

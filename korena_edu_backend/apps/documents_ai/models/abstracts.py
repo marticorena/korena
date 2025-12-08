@@ -2,28 +2,7 @@ from django.db import models
 
 
 class DocumentStructuredContentMetadata(models.Model):
-    """Abstract base with normalized structured content for a document version.
-
-    This JSON stores the canonical representation used by search/IA and
-    the processed view in the frontend.
-
-    High-level schema example:
-    {
-        "blocks": [
-            {"id": "b1", "type": "heading", "level": 1, "text": "...", "page": 1},
-            {"id": "b2", "type": "paragraph", "text": "...", "page": 1},
-            {
-                "id": "t1",
-                "type": "table",
-                "title": "...",
-                "page": 2,
-                "columns": ["Col 1", "Col 2"],
-                "rows": [["a", "b"], ["c", "d"]],
-            },
-            ...
-        ]
-    }
-    """
+    """Structured content metadata for a document version."""
 
     structured_content = models.JSONField(
         default=dict,
@@ -58,26 +37,43 @@ class DocumentStructuredContentMetadata(models.Model):
 
 
 class DocumentProcessingMetadata(models.Model):
-    """Abstract base with IA-related processing metadata.
-
-    This keeps:
-    - AI summary for UX / quick understanding
-    - indexing flags for chunks/embeddings
-    """
+    """Processing metadata for chunking and embeddings."""
 
     ai_summary = models.TextField(
         blank=True,
         help_text="Resumen generado por IA.",
     )
 
-    is_indexed = models.BooleanField(
-        default=False,
-        help_text="Verdadero cuando la versión ha sido troceada e indexada para IA.",
+    chunking_generated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Momento en que se generaron los fragmentos por última vez.",
     )
 
-    indexing_error = models.TextField(
+    is_chunking_ready = models.BooleanField(
+        default=False,
+        help_text="Verdadero cuando se generaron correctamente los fragmentos.",
+    )
+
+    chunking_error = models.TextField(
         blank=True,
-        help_text="Mensaje de error si falló el chunking/indexación.",
+        help_text="Mensaje de error si falló el proceso de chunking.",
+    )
+
+    embeddings_generated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Momento en que se generaron los embeddings por última vez.",
+    )
+
+    is_embeddings_ready = models.BooleanField(
+        default=False,
+        help_text="Verdadero cuando todos los fragmentos tienen embeddings.",
+    )
+
+    embeddings_error = models.TextField(
+        blank=True,
+        help_text="Mensaje de error si falló la generación de embeddings.",
     )
 
     class Meta:

@@ -32,6 +32,9 @@ redis>=6.0,<8.0
 PyMuPDF==1.26.6
 python-docx==1.2.0
 
+# EMBEDDINGS / ML
+fastembed==0.4.2
+
 # SECURITY / UTILITIES
 python-decouple==3.8
 bcrypt==5.0.0

@@ -6,117 +6,139 @@ from django.utils import timezone
 from celery import shared_task
 
 from apps.core.metrics import track_celery_task
+from apps.core.tasks import dispatch_after_commit
 from apps.documents.models.documents import DocumentVersion
 from apps.documents_ai.models.choices import DocumentChunkCategory
 from apps.documents_ai.models.documents_ai import DocumentChunk
 from apps.documents_ai.parsers.docx_to_structured import parse_docx_to_structured
 from apps.documents_ai.parsers.pdf_to_structured import parse_pdf_to_structured
 from apps.documents_ai.services.chunking import build_chunks_from_structured
+from apps.documents_ai.services.embedding import get_embeddings
 
 logger = logging.getLogger(__name__)
 
 
 @shared_task(bind=True, max_retries=3)
-@track_celery_task("generate_embeddings_for_document_version")
-def generate_embeddings_for_document_version(self, version_id: int) -> None:
-    """Generate embeddings for all chunks of a version.
-
-    NOTE:
-        This assumes you have some embedding backend (OpenAI, local model, etc.)
-        exposed via a helper function.
-
-        Expected helper signature (implement this yourself):
-
-        >>> from apps.documents.utils.embeddings import get_embedding
-        >>> def get_embedding(text: str) -> list[float]: ...
-
-    The task:
-    - Iterates chunks without embedding.
-    - Calls get_embedding(content).
-    - Persists embeddings in the VectorField.
-    """
-    from apps.documents.utils.embeddings import get_embedding  # local import
+@track_celery_task("process_document_version_for_structure")
+def process_document_version_for_structure(self: Any, version_id: int) -> None:
+    """Build structured_content JSON for a DocumentVersion and trigger chunking."""
+    version: DocumentVersion | None = None
 
     try:
         version = DocumentVersion.objects.get(id=version_id)
-    except DocumentVersion.DoesNotExist:
-        return
 
-    try:
-        chunks = DocumentChunk.objects.filter(
-            version=version,
-            embedding__isnull=True,
-        ).order_by("index")
+        file_name = version.file.name or ""
+        extension = ""
+        if "." in file_name:
+            extension = file_name.lower().rsplit(".", 1)[-1]
 
-        if not chunks.exists():
+        if extension not in {"pdf", "docx"}:
+            version.is_structured_ready = False
+            version.structured_error = (
+                f"Tipo de archivo no soportado para procesamiento estructurado: "
+                f".{extension or 'desconocido'}."
+            )
+            version.structured_generated_at = None
+            version.save(
+                update_fields=[
+                    "is_structured_ready",
+                    "structured_error",
+                    "structured_generated_at",
+                ],
+            )
+
             return
 
-        updated_chunks: list[DocumentChunk] = []
+        file_path = version.file.path
 
-        for chunk in chunks:
-            try:
-                embedding = get_embedding(chunk.content)
-                chunk.embedding = embedding
-                updated_chunks.append(chunk)
-            except Exception as embed_exc:
-                logger.exception(
-                    "Error generating embedding for chunk id=%s: %s",
-                    chunk.id,
-                    embed_exc,
-                )
-                # We do NOT fail the entire task for one bad chunk.
+        if extension == "pdf":
+            structured_content: Dict[str, Any] = parse_pdf_to_structured(file_path)
+        else:
+            structured_content = parse_docx_to_structured(file_path)
 
-        if updated_chunks:
-            DocumentChunk.objects.bulk_update(
-                updated_chunks,
-                ["embedding"],
-            )
+        if not isinstance(structured_content, dict):
+            structured_content = {}
+
+        version.structured_content = structured_content
+        version.structured_generated_at = timezone.now()
+        version.is_structured_ready = True
+        version.structured_error = ""
+
+        version.save(
+            update_fields=[
+                "structured_content",
+                "structured_generated_at",
+                "is_structured_ready",
+                "structured_error",
+            ],
+        )
+
+        dispatch_after_commit(
+            build_chunks_for_document_version.delay,
+            version.id,
+        )
+
+        return
+
+    except DocumentVersion.DoesNotExist:
+        logger.exception(
+            "Error processing structured content (DocumentVersion id=%s). DocumentVersion.DoesNotExist",
+            version_id,
+        )
 
         return
 
     except Exception as exc:
+        if version is not None:
+            version.is_structured_ready = False
+            version.structured_error = str(exc)
+            version.structured_generated_at = None
+            version.save(
+                update_fields=[
+                    "is_structured_ready",
+                    "structured_error",
+                    "structured_generated_at",
+                ],
+            )
+
         logger.exception(
-            "Error generating embeddings (DocumentVersion id=%s).",
+            "Error processing structured content (DocumentVersion id=%s).",
             version_id,
         )
+
         raise self.retry(exc=exc, countdown=5)
 
 
 @shared_task(bind=True, max_retries=3)
 @track_celery_task("build_chunks_for_document_version")
-def build_chunks_for_document_version(self, version_id: int) -> None:
-    """Create DocumentChunk rows from structured_content.
-
-    This task:
-    - Requires structured_content to be ready.
-    - Deletes existing chunks for that version (idempotent).
-    - Uses build_chunks_from_structured(...) to obtain chunk specs.
-    - Bulk-creates DocumentChunk rows.
-    - Marks is_indexed or stores indexing_error.
-    """
+def build_chunks_for_document_version(self: Any, version_id: int) -> None:
+    """Create DocumentChunk rows from structured_content and trigger embeddings."""
     version: DocumentVersion | None = None
 
     try:
         version = DocumentVersion.objects.get(id=version_id)
 
         if not version.is_structured_ready or not version.structured_content:
-            version.is_indexed = False
-            version.indexing_error = (
+            version.is_chunking_ready = False
+            version.chunking_error = (
                 "El contenido estructurado aún no está listo para generar fragmentos."
             )
+            version.chunking_generated_at = None
             version.save(
                 update_fields=[
-                    "is_indexed",
-                    "indexing_error",
+                    "is_chunking_ready",
+                    "chunking_error",
+                    "chunking_generated_at",
                 ],
             )
+
             return
 
-        # Remove previous chunks to keep the operation idempotent.
         DocumentChunk.objects.filter(version=version).delete()
 
         raw_chunks: List[Dict[str, Any]] = build_chunks_from_structured(
-            version.structured_content
+            version.structured_content,
+            start_index=0,
         )
 
         chunk_objects: List[DocumentChunk] = []
@@ -136,29 +158,38 @@ def build_chunks_for_document_version(self, version_id: int) -> None:
         if chunk_objects:
             DocumentChunk.objects.bulk_create(chunk_objects)
 
-        version.is_indexed = True
-        version.indexing_error = ""
-
+        version.is_chunking_ready = True
+        version.chunking_error = ""
+        version.chunking_generated_at = timezone.now()
         version.save(
             update_fields=[
-                "is_indexed",
-                "indexing_error",
+                "is_chunking_ready",
+                "chunking_error",
+                "chunking_generated_at",
             ],
+        )
+
+        dispatch_after_commit(
+            generate_embeddings_for_document_version.delay,
+            version.id,
         )
 
         return
 
     except DocumentVersion.DoesNotExist:
+
         return
 
     except Exception as exc:
         if version is not None:
-            version.is_indexed = False
-            version.indexing_error = str(exc)
+            version.is_chunking_ready = False
+            version.chunking_error = str(exc)
+            version.chunking_generated_at = None
             version.save(
                 update_fields=[
-                    "is_indexed",
-                    "indexing_error",
+                    "is_chunking_ready",
+                    "chunking_error",
+                    "chunking_generated_at",
                 ],
             )
 
@@ -171,87 +202,97 @@ def build_chunks_for_document_version(self, version_id: int) -> None:
 
 
 @shared_task(bind=True, max_retries=3)
-@track_celery_task("process_document_version_for_structure")
-def process_document_version_for_structure(self, version_id: int) -> None:
-    """Build structured_content JSON for a DocumentVersion.
-
-    This task:
-    - Loads the version.
-    - Detects extension (.pdf / .docx).
-    - Delegates parsing to the corresponding structured parser.
-    - Updates structured_content, timestamps and flags.
-    - Sets is_structured_ready or stores a Spanish error message.
-    """
-    version: DocumentVersion | None = None
-
+@track_celery_task("generate_embeddings_for_document_version")
+def generate_embeddings_for_document_version(self: Any, version_id: int) -> None:
+    """Generate embeddings for all chunks of a version."""
     try:
         version = DocumentVersion.objects.get(id=version_id)
+    except DocumentVersion.DoesNotExist:
 
-        file_name = version.file.name or ""
-        extension = ""
-        if "." in file_name:
-            extension = file_name.lower().rsplit(".", 1)[-1]
+        return
 
-        if extension not in {"pdf", "docx"}:
-            version.is_structured_ready = False
-            version.structured_error = (
-                f"Tipo de archivo no soportado para procesamiento estructurado: "
-                f".{extension or 'desconocido'}."
-            )
+    try:
+        chunks = list(
+            DocumentChunk.objects.filter(
+                version=version,
+                embedding__isnull=True,
+            ).order_by("index"),
+        )
+
+        if not chunks:
+            version.is_embeddings_ready = True
+            version.embeddings_error = ""
+            version.embeddings_generated_at = timezone.now()
             version.save(
                 update_fields=[
-                    "is_structured_ready",
-                    "structured_error",
+                    "is_embeddings_ready",
+                    "embeddings_error",
+                    "embeddings_generated_at",
                 ],
             )
+
             return
 
-        file_path = version.file.path
+        texts = [chunk.content for chunk in chunks]
+        vectors = get_embeddings(texts)
 
-        if extension == "pdf":
-            structured_content: Dict[str, Any] = parse_pdf_to_structured(file_path)
-        else:
-            structured_content = parse_docx_to_structured(file_path)
+        if len(vectors) != len(chunks):
+            logger.warning(
+                "Embedding count mismatch for version id=%s: %s chunks, %s vectors",
+                version_id,
+                len(chunks),
+                len(vectors),
+            )
+            version.is_embeddings_ready = False
+            version.embeddings_error = (
+                "Desajuste entre cantidad de chunks y embeddings generados."
+            )
+            version.embeddings_generated_at = None
+            version.save(
+                update_fields=[
+                    "is_embeddings_ready",
+                    "embeddings_error",
+                    "embeddings_generated_at",
+                ],
+            )
 
-        # Defensive default
-        if not isinstance(structured_content, dict):
-            structured_content = {}
+            return
 
-        version.structured_content = structured_content
-        version.structured_generated_at = timezone.now()
-        version.is_structured_ready = True
-        version.structured_error = ""
+        for chunk, vector in zip(chunks, vectors):
+            chunk.embedding = vector
 
+        DocumentChunk.objects.bulk_update(
+            chunks,
+            ["embedding"],
+        )
+
+        version.is_embeddings_ready = True
+        version.embeddings_error = ""
+        version.embeddings_generated_at = timezone.now()
         version.save(
             update_fields=[
-                "structured_content",
-                "structured_generated_at",
-                "is_structured_ready",
-                "structured_error",
+                "is_embeddings_ready",
+                "embeddings_error",
+                "embeddings_generated_at",
             ],
         )
 
         return
 
-    except DocumentVersion.DoesNotExist:
-        # If the version does not exist anymore, we silently exit.
-        return
-
     except Exception as exc:
-        if version is not None:
-            version.is_structured_ready = False
-            version.structured_error = str(exc)
-            version.save(
-                update_fields=[
-                    "is_structured_ready",
-                    "structured_error",
-                ],
-            )
-
         logger.exception(
-            "Error processing structured content (DocumentVersion id=%s).",
+            "Error generating embeddings (DocumentVersion id=%s).",
             version_id,
         )
+        version.is_embeddings_ready = False
+        version.embeddings_error = str(exc)
+        version.embeddings_generated_at = None
+        version.save(
+            update_fields=[
+                "is_embeddings_ready",
+                "embeddings_error",
+                "embeddings_generated_at",
+            ],
+        )
 
-        # Retry after 5 seconds
         raise self.retry(exc=exc, countdown=5)

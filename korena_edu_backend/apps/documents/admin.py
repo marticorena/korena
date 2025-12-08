@@ -49,16 +49,22 @@ class DocumentVersionInline(admin.TabularInline):
         "created_by",
         "created_at",
         "page_count",
-        "is_indexed",
         "is_structured_ready",
         "structured_generated_at",
+        "is_chunking_ready",
+        "chunking_generated_at",
+        "is_embeddings_ready",
+        "embeddings_generated_at",
     )
 
     readonly_fields = (
         "created_at",
-        "is_indexed",
         "is_structured_ready",
         "structured_generated_at",
+        "is_chunking_ready",
+        "chunking_generated_at",
+        "is_embeddings_ready",
+        "embeddings_generated_at",
     )
 
     ordering = ("-created_at",)
@@ -165,15 +171,19 @@ class DocumentVersionAdmin(admin.ModelAdmin):
         "created_by",
         "created_at",
         "page_count",
-        "is_indexed",
         "is_structured_ready",
+        "is_chunking_ready",
+        "is_embeddings_ready",
         "structured_generated_at",
+        "chunking_generated_at",
+        "embeddings_generated_at",
     )
     list_filter = (
         "status",
         "source",
-        "is_indexed",
         "is_structured_ready",
+        "is_chunking_ready",
+        "is_embeddings_ready",
         "created_at",
     )
     search_fields = (
@@ -211,16 +221,6 @@ class DocumentVersionAdmin(admin.ModelAdmin):
             },
         ),
         (
-            "AI processing",
-            {
-                "fields": (
-                    "ai_summary",
-                    "is_indexed",
-                    "indexing_error",
-                ),
-            },
-        ),
-        (
             "Structured content",
             {
                 "fields": (
@@ -228,6 +228,20 @@ class DocumentVersionAdmin(admin.ModelAdmin):
                     "structured_generated_at",
                     "structured_content",
                     "structured_error",
+                ),
+            },
+        ),
+        (
+            "AI processing",
+            {
+                "fields": (
+                    "is_chunking_ready",
+                    "chunking_generated_at",
+                    "chunking_error",
+                    "is_embeddings_ready",
+                    "embeddings_generated_at",
+                    "embeddings_error",
+                    "ai_summary",
                 ),
             },
         ),
@@ -241,9 +255,15 @@ class DocumentVersionAdmin(admin.ModelAdmin):
 
     readonly_fields = (
         "created_at",
-        "is_indexed",
-        "ai_summary",
         "is_structured_ready",
         "structured_generated_at",
         "structured_content",
+        "structured_error",
+        "is_chunking_ready",
+        "chunking_generated_at",
+        "chunking_error",
+        "is_embeddings_ready",
+        "embeddings_generated_at",
+        "embeddings_error",
+        "ai_summary",
     )

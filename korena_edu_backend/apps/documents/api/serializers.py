@@ -30,8 +30,7 @@ class DocumentVersionSerializer(serializers.ModelSerializer):
             "checksum",
             "page_count",
             # IA processing metadata (AIProcessingMetadata mixin)
-            "ai_summary",
-            "is_indexed",
+            "is_chunking_ready",
             "indexing_error",
         ]
 
@@ -44,8 +43,7 @@ class DocumentVersionSerializer(serializers.ModelSerializer):
             "mime_type",
             "checksum",
             "page_count",
-            "ai_summary",
-            "is_indexed",
+            "is_chunking_ready",
             "indexing_error",
         ]
 

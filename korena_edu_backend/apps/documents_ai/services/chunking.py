@@ -1,52 +1,56 @@
 from typing import Any, Dict, Iterable, List
 
-from django.db import transaction
-
-from apps.documents.models.documents import (
-    DocumentVersion,
-)
-from apps.documents_ai.models.documents_ai import (
-    DocumentChunk,
-    DocumentChunkCategory,
-)
+from apps.documents_ai.models.documents_ai import DocumentChunkCategory
 
 
 def build_chunks_from_structured(
-    version: DocumentVersion,
+    structured: Dict[str, Any],
     *,
     max_chars_per_chunk: int = 1200,
-) -> List[DocumentChunk]:
-    """Build DocumentChunk rows from a version's structured_content.
+    start_index: int = 0,
+) -> List[Dict[str, Any]]:
+    """Build raw chunk specs from a structured_content dict.
 
-    This function assumes `version.structured_content` has the shape:
-    {
-        "blocks": [
-            {"id": "b1", "type": "heading", "level": 1, "text": "...", "page": 1},
-            {"id": "b2", "type": "paragraph", "text": "...", "page": 1},
+    Args:
+        structured: Dict with the shape:
             {
-                "id": "t1",
-                "type": "table",
-                "columns": ["Col 1", "Col 2"],
-                "rows": [["a", "b"], ["c", "d"]],
-                "page": 2,
-            },
-            ...
-        ]
-    }
-
-    For each block:
-    - headings, paragraphs, lists → plain text chunks.
-    - tables → markdown-formatted text chunks.
-    - LONG texts are split into multiple chunks based on `max_chars_per_chunk`.
+                "blocks": [
+                    {
+                        "id": "b1",
+                        "type": "heading",
+                        "level": 1,
+                        "text": "...",
+                        "page": 1,
+                    },
+                    {
+                        "id": "b2",
+                        "type": "paragraph",
+                        "text": "...",
+                        "page": 1,
+                    },
+                    {
+                        "id": "t1",
+                        "type": "table",
+                        "columns": ["Col 1", "Col 2"],
+                        "rows": [["a", "b"], ["c", "d"]],
+                        "page": 2,
+                    },
+                    ...
+                ]
+            }
+        max_chars_per_chunk: Maximum characters per text slice.
+        start_index: Initial index for chunks (useful for incremental chunking).
 
     Returns:
-        List[DocumentChunk]: All chunks created for this version.
+        List[Dict[str, Any]]: List of raw chunk dicts with keys:
+            - "index"
+            - "content"
+            - "chunk_type"
+            - "token_count"
+            - "metadata"
     """
-    structured: Dict[str, Any] = version.structured_content or {}
+    structured = structured or {}
     blocks: List[Dict[str, Any]] = structured.get("blocks") or []
-
-    # Starting index (in case you want to re-chunk incrementally).
-    next_index = version.chunks.count()
 
     segments: List[Dict[str, Any]] = []
 
@@ -67,8 +71,8 @@ def build_chunks_from_structured(
             chunk_type = DocumentChunkCategory.PARAGRAPH
 
         elif b_type == "list":
-            # Represent list item as text; if you later need bullets you can
-            # prefix with "- " or similar.
+            # Represent list item as plain text; if you later need bullets
+            # you can prefix with "- " or similar.
             text = (block.get("text") or "").strip()
             chunk_type = DocumentChunkCategory.LIST
 
@@ -98,35 +102,35 @@ def build_chunks_from_structured(
                 "text": text,
                 "chunk_type": chunk_type,
                 "metadata": base_metadata,
-            }
+            },
         )
 
-    created_chunks: List[DocumentChunk] = []
+    raw_chunks: List[Dict[str, Any]] = []
+    next_index = start_index
 
-    with transaction.atomic():
-        for segment in segments:
-            text = segment["text"]
-            chunk_type = segment["chunk_type"]
-            base_metadata = segment["metadata"]
+    for segment in segments:
+        text = segment["text"]
+        chunk_type = segment["chunk_type"]
+        base_metadata = segment["metadata"]
 
-            for slice_index, slice_text in enumerate(
-                _split_long_text(text, max_chars=max_chars_per_chunk)
-            ):
-                metadata = dict(base_metadata)
-                metadata["slice_index"] = slice_index
+        for slice_index, slice_text in enumerate(
+            _split_long_text(text, max_chars=max_chars_per_chunk),
+        ):
+            metadata = dict(base_metadata)
+            metadata["slice_index"] = slice_index
 
-                chunk = DocumentChunk.objects.create(
-                    version=version,
-                    index=next_index,
-                    content=slice_text,
-                    chunk_type=chunk_type,
-                    token_count=_estimate_tokens(slice_text),
-                    metadata=metadata,
-                )
-                created_chunks.append(chunk)
-                next_index += 1
+            raw_chunks.append(
+                {
+                    "index": next_index,
+                    "content": slice_text,
+                    "chunk_type": chunk_type,
+                    "token_count": _estimate_tokens(slice_text),
+                    "metadata": metadata,
+                },
+            )
+            next_index += 1
 
-    return created_chunks
+    return raw_chunks
 
 
 # Helpers
@@ -135,7 +139,7 @@ def build_chunks_from_structured(
 def _split_long_text(text: str, *, max_chars: int) -> Iterable[str]:
     """Split long text into slices of at most `max_chars` characters.
 
-    This is a simple, deterministic splitter; for most normative docs
+    This is a simple, deterministic splitter; for most normative docs,
     paragraphs/headings won't be huge, so this is mainly a safety net.
     """
     cleaned = text.strip()
@@ -158,7 +162,7 @@ def _split_long_text(text: str, *, max_chars: int) -> Iterable[str]:
 
 
 def _table_to_markdown(*, columns: List[str], rows: List[List[str]]) -> str:
-    """Render a simple table (columns + rows) to markdown text.
+    """Render a simple table (columns + rows) to Markdown text.
 
     Example:
         columns = ["A", "B"]
@@ -177,7 +181,7 @@ def _table_to_markdown(*, columns: List[str], rows: List[List[str]]) -> str:
     # If no columns but we have rows, generate generic headers.
     if not columns and rows:
         max_cols = max(len(r) for r in rows)
-        columns = [f"Col {i+1}" for i in range(max_cols)]
+        columns = [f"Col {i + 1}" for i in range(max_cols)]
 
     # Normalize row lengths.
     normalized_rows: List[List[str]] = []

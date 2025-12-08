@@ -19,6 +19,7 @@ from apps.accounts.utils import generate_token_and_email, verify_token
 from apps.core.endpoints.permissions import IsAuthenticatedGraphql, IsVerifiedGraphql
 from apps.core.graphql.utils import build_form_errors, raise_form_error
 from apps.core.messages import ERROR_MESSAGES
+from apps.core.tasks import dispatch_after_commit
 from apps.notifications.tasks import send_email_task
 
 User = get_user_model()
@@ -124,7 +125,7 @@ class AccountMutations:
         )
 
         token, email_log = generate_token_and_email(user)
-        send_email_task.delay(email_log.id)
+        dispatch_after_commit(send_email_task.delay, email_log.id)
 
         return RegisterUserPayload(token=token)
 
