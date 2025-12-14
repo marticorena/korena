@@ -20,7 +20,6 @@ class UserType:
     first_name: str
     last_name: str
     role: str
-    is_verified: bool
 
 
 @strawberry.type

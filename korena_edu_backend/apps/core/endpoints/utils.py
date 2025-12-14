@@ -13,22 +13,8 @@ def check_authenticated_user(user: Any) -> tuple[bool, str | None]:
     return True, None
 
 
-def check_verified_user(user: Any) -> tuple[bool, str | None]:
-    is_auth, auth_error = check_authenticated_user(user)
-
-    if not is_auth:
-        return False, auth_error
-
-    if not getattr(user, "is_verified", False):
-
-        return False, ERROR_MESSAGES["auth.not_verified"]
-
-    return True, None
-
-
 KEY_CODE_MAP: dict[str, str] = {
     "auth.not_authenticated": "UNAUTHENTICATED",
-    "auth.not_verified": "FORBIDDEN",
     "auth.invalid_credentials": "BAD_USER_INPUT",
     "auth.invalid_current_password": "BAD_USER_INPUT",
     "auth.user_not_found": "BAD_USER_INPUT",

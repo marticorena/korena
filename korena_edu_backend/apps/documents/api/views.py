@@ -12,7 +12,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
-from apps.core.endpoints.permissions import IsAuthenticatedRest, IsVerifiedRest
+from apps.core.endpoints.permissions import IsAuthenticatedRest
 from apps.core.endpoints.utils import graphql_style_error_response
 from apps.core.messages import ERROR_MESSAGES
 from apps.documents.api.serializers import DocumentVersionSerializer
@@ -24,7 +24,7 @@ class DocumentVersionUploadView(APIView):
 
     parser_classes = [MultiPartParser, FormParser]
     authentication_classes = (JWTAuthentication,)
-    permission_classes = [IsAuthenticatedRest, IsVerifiedRest]
+    permission_classes = [IsAuthenticatedRest]
 
     graphql_path = ["documentVersionUpload"]
 
@@ -41,7 +41,7 @@ class DocumentVersionUploadView(APIView):
         if isinstance(exc, PermissionDenied):
 
             return graphql_style_error_response(
-                message=ERROR_MESSAGES["auth.not_verified"],
+                message=ERROR_MESSAGES["auth.not_authenticated"],
                 status_code=status.HTTP_403_FORBIDDEN,
                 path=self.graphql_path,
             )

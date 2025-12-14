@@ -11,7 +11,6 @@ query Me {
     firstName
     lastName
     role
-    isVerified
   }
 }
 """
@@ -60,9 +59,9 @@ mutation RegisterUser(
 }
 """
 
-VERIFY_EMAIL_MUTATION = """
-mutation VerifyEmail($token: String!) {
-  verifyEmail(token: $token) {
+ACTIVATE_ACCOUNT_MUTATION = """
+mutation ActivateAccount($token: String!) {
+  activateAccount(token: $token) {
     email
   }
 }
@@ -106,7 +105,7 @@ __all__ = [
     "REFRESH_TOKEN_MUTATION",
     "VERIFY_TOKEN_MUTATION",
     "REGISTER_USER_MUTATION",
-    "VERIFY_EMAIL_MUTATION",
+    "ACTIVATE_ACCOUNT_MUTATION",
     "UPDATE_USER_MUTATION",
     "CHANGE_PASSWORD_MUTATION",
     "DELETE_ACCOUNT_MUTATION",

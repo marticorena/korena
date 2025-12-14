@@ -16,10 +16,6 @@ class School(models.Model):
         blank=True,
         help_text="Optional school code, such as a local or national registry identifier.",
     )
-    is_verified = models.BooleanField(
-        default=False,
-        help_text="Indicates whether the school has been validated/approved.",
-    )
 
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)

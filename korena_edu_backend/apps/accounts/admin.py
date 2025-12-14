@@ -13,7 +13,6 @@ class UserAdmin(BaseUserAdmin):
         "first_name",
         "last_name",
         "role",
-        "is_verified",
         "is_active",
         "is_staff",
         "school",
@@ -22,7 +21,6 @@ class UserAdmin(BaseUserAdmin):
 
     list_filter = (
         "role",
-        "is_verified",
         "is_active",
         "is_staff",
         "school",
@@ -46,7 +44,6 @@ class UserAdmin(BaseUserAdmin):
             {
                 "fields": (
                     "role",
-                    "is_verified",
                     "is_active",
                 )
             },
@@ -78,7 +75,6 @@ class UserAdmin(BaseUserAdmin):
                     "first_name",
                     "last_name",
                     "role",
-                    "is_verified",
                     "is_active",
                     "is_staff",
                     "school",

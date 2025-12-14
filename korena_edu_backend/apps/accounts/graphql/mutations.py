@@ -12,7 +12,7 @@ from strawberry.types import Info
 from apps.accounts.forms import ChangePasswordForm, RegisterForm, UpdateUserForm
 from apps.accounts.graphql.types import EmailPayload, RegisterUserPayload, TokenPair
 from apps.accounts.utils import generate_token_and_email, verify_token
-from apps.core.endpoints.permissions import IsAuthenticatedGraphql, IsVerifiedGraphql
+from apps.core.endpoints.permissions import IsAuthenticatedGraphql
 from apps.core.graphql.utils import build_form_errors, raise_form_error
 from apps.core.messages import ERROR_MESSAGES
 from apps.core.tasks import dispatch_after_commit
@@ -32,12 +32,6 @@ class AccountMutations:
 
         if not user:
             raise ValueError(ERROR_MESSAGES["auth.invalid_credentials"])
-
-        if not user.is_active:
-            raise ValueError(ERROR_MESSAGES["auth.not_active"])
-
-        if not getattr(user, "is_verified", False):
-            raise PermissionError(ERROR_MESSAGES["auth.not_verified"])
 
         serializer = TokenObtainPairSerializer(
             data={"email": email, "password": password},
@@ -92,7 +86,7 @@ class AccountMutations:
         first_name: str,
         last_name: str,
     ) -> RegisterUserPayload:
-        """Register a user and send verification email."""
+        """Register a user and send activation email."""
         form = RegisterForm(
             {
                 "email": email,
@@ -119,9 +113,9 @@ class AccountMutations:
 
         return RegisterUserPayload(token=token)
 
-    @strawberry.mutation(name="verifyEmail")
-    def verify_email(self, info: Info, token: str) -> EmailPayload:
-        """Verify user account using email token."""
+    @strawberry.mutation(name="activateAccount")
+    def activate_account(self, info: Info, token: str) -> EmailPayload:
+        """Activate user account using email token."""
         email = verify_token(token)
 
         if not email:
@@ -132,15 +126,14 @@ class AccountMutations:
         except User.DoesNotExist as exc:
             raise ValueError(ERROR_MESSAGES["auth.user_not_found"]) from exc
 
-        user.is_verified = True
         user.is_active = True
-        user.save(update_fields=["is_verified", "is_active"])
+        user.save(update_fields=["is_active"])
 
         return EmailPayload(email=email)
 
     @strawberry.mutation(
         name="updateUser",
-        permission_classes=[IsAuthenticatedGraphql, IsVerifiedGraphql],
+        permission_classes=[IsAuthenticatedGraphql],
     )
     def update_user(self, info: Info, first_name: str, last_name: str) -> EmailPayload:
         """Update the authenticated user's profile."""
@@ -160,7 +153,7 @@ class AccountMutations:
 
     @strawberry.mutation(
         name="changePassword",
-        permission_classes=[IsAuthenticatedGraphql, IsVerifiedGraphql],
+        permission_classes=[IsAuthenticatedGraphql],
     )
     def change_password(
         self,
@@ -187,7 +180,7 @@ class AccountMutations:
 
     @strawberry.mutation(
         name="deleteAccount",
-        permission_classes=[IsAuthenticatedGraphql, IsVerifiedGraphql],
+        permission_classes=[IsAuthenticatedGraphql],
     )
     def delete_account(self, info: Info, current_password: str) -> EmailPayload:
         """Permanently delete the user account."""

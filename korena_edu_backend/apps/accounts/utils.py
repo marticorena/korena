@@ -14,8 +14,8 @@ signer = TimestampSigner()
 User = get_user_model()
 
 
-def generate_verification_token(email: str) -> str:
-    """Generate a signed token for email verification.
+def generate_activation_token(email: str) -> str:
+    """Generate a signed token for account activation.
 
     Args:
         email: The email address to sign.
@@ -28,29 +28,29 @@ def generate_verification_token(email: str) -> str:
 
 
 def generate_token_and_email(user: Any) -> tuple[str, EmailLog]:
-    """Generate a verification token, build verification email content, and persist email log.
+    """Generate an activation token, build account activation email content, and persist email log.
 
     Args:
-        user: The user instance for whom the verification token is generated.
+        user: The user instance for whom the activation token is generated.
 
     Returns:
         tuple[str, EmailLog]: A tuple containing:
-            - str: The raw verification token before encoding.
+            - str: The raw activation token before encoding.
             - EmailLog: The saved email log entry containing HTML and plain message versions.
     """
-    token = generate_verification_token(user.email)
+    token = generate_activation_token(user.email)
     encoded_token = quote(token, safe="")
 
-    verify_url = f"{settings.FRONTEND_URL}/verify-email?token={encoded_token}"
+    activation_url = f"{settings.FRONTEND_URL}/activate-account?token={encoded_token}"
 
     html_message = render_to_string(
-        "users/email_verification.html",
-        {"user": user, "verify_url": verify_url},
+        "users/account_activation.html",
+        {"user": user, "activation_url": activation_url},
     )
     html_message = transform(html_message)
-    plain_message = f"Hola {user.first_name}, verifica tu cuenta aquí: {verify_url}"
+    plain_message = f"Hola {user.first_name}, activa tu cuenta aquí: {activation_url}"
 
-    subject = "Korena - Verifica tu cuenta"
+    subject = "Korena - Activa tu cuenta"
 
     email_log = EmailLog.objects.create(
         from_email=settings.DEFAULT_FROM_EMAIL,

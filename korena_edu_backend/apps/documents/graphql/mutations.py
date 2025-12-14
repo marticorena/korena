@@ -4,7 +4,7 @@ import strawberry
 from strawberry.exceptions import GraphQLError
 from strawberry.types import Info
 
-from apps.core.endpoints.permissions import IsAuthenticatedGraphql, IsVerifiedGraphql
+from apps.core.endpoints.permissions import IsAuthenticatedGraphql
 from apps.core.messages import ERROR_MESSAGES
 from apps.documents.graphql.types import DocumentCategoryType, DocumentType
 from apps.documents.models import Document, DocumentCategory, DocumentLevel
@@ -41,7 +41,7 @@ class DocumentMutations:
     """Root mutation group for document-related operations."""
 
     @strawberry.mutation(
-        permission_classes=[IsAuthenticatedGraphql, IsVerifiedGraphql],
+        permission_classes=[IsAuthenticatedGraphql],
         name="createDocument",
     )
     def create_document(
@@ -80,7 +80,7 @@ class DocumentMutations:
         return CreateDocumentPayload(document=document)
 
     @strawberry.mutation(
-        permission_classes=[IsAuthenticatedGraphql, IsVerifiedGraphql],
+        permission_classes=[IsAuthenticatedGraphql],
         name="createDocumentCategory",
     )
     def create_document_category(

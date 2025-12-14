@@ -4,7 +4,7 @@ import strawberry
 from strawberry.exceptions import GraphQLError
 from strawberry.types import Info
 
-from apps.core.endpoints.permissions import IsAuthenticatedGraphql, IsVerifiedGraphql
+from apps.core.endpoints.permissions import IsAuthenticatedGraphql
 from apps.core.messages import ERROR_MESSAGES
 from apps.documents.graphql.types import DocumentType
 from apps.documents.models import Document, DocumentLevel
@@ -14,7 +14,7 @@ from apps.documents.models import Document, DocumentLevel
 class DocumentQueries:
     """Document-related GraphQL queries."""
 
-    @strawberry.field(permission_classes=[IsAuthenticatedGraphql, IsVerifiedGraphql])
+    @strawberry.field(permission_classes=[IsAuthenticatedGraphql])
     def my_documents(
         self,
         info: Info,
@@ -46,7 +46,7 @@ class DocumentQueries:
 
         return list(queryset)
 
-    @strawberry.field(permission_classes=[IsAuthenticatedGraphql, IsVerifiedGraphql])
+    @strawberry.field(permission_classes=[IsAuthenticatedGraphql])
     def document(
         self,
         info: Info,

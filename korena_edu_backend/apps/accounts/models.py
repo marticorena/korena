@@ -20,7 +20,6 @@ class UserManager(BaseUserManager):
         # Ensure safe defaults
         extra_fields.setdefault("is_active", True)
         extra_fields.setdefault("is_staff", False)
-        extra_fields.setdefault("is_verified", False)
 
         user: User = self.model(email=email, **extra_fields)
         user.set_password(password)
@@ -35,7 +34,6 @@ class UserManager(BaseUserManager):
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
         extra_fields.setdefault("role", User.Role.SUPER_ADMIN)
-        extra_fields.setdefault("is_verified", True)
         extra_fields.setdefault("is_active", True)
 
         if extra_fields.get("is_staff") is not True:
@@ -71,7 +69,6 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
-    is_verified = models.BooleanField(default=False)
 
     date_joined = models.DateTimeField(auto_now_add=True)
 

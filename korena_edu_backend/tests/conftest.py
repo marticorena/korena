@@ -24,43 +24,22 @@ def gql_client() -> Any:
 
 
 @pytest.fixture
-def non_verified_user(db) -> User:
-    """Create and return a regular, inactive-but-usable user.
+def active_user(db) -> User:
+    """Create and return an active user for login_required flows.
 
     Args:
         db: Django database fixture.
 
     Returns:
-        User: A user instance.
+        User: An active user instance.
     """
     u = User.objects.create_user(
-        email="non-verified@example.com",
-        password="P4ss-w0rd!",
-        first_name="Non",
-        last_name="Verified",
-    )
-
-    return u
-
-
-@pytest.fixture
-def verified_user(db) -> User:
-    """Create and return a verified/active user for login_required flows.
-
-    Args:
-        db: Django database fixture.
-
-    Returns:
-        User: A verified/active user instance.
-    """
-    u = User.objects.create_user(
-        email="verified@example.com",
+        email="active@example.com",
         password="P4ss-w0rd!",
         first_name="Yes",
-        last_name="Verified",
+        last_name="Active",
     )
     u.is_active = True
-    u.is_verified = True
     u.save()
 
     return u
@@ -115,31 +94,16 @@ def anon_context() -> SimpleNamespace:
 
 
 @pytest.fixture
-def non_verified_context(non_verified_user: User) -> SimpleNamespace:
-    """Return a GraphQL context with a non-verified authenticated user.
+def active_context(active_user: User) -> SimpleNamespace:
+    """Return a GraphQL context with an authenticated, active user.
 
     Args:
-        non_verified_user: A Django user instance.
+        active_user: An active Django user instance.
 
     Returns:
-        SimpleNamespace: Context with the provided user under request.user.
+        SimpleNamespace: Context with the active user under request.user.
     """
-    ctx = _make_request_context(non_verified_user)
-
-    return ctx
-
-
-@pytest.fixture
-def verified_context(verified_user: User) -> SimpleNamespace:
-    """Return a GraphQL context with an authenticated, verified user.
-
-    Args:
-        verified_user: A verified Django user instance.
-
-    Returns:
-        SimpleNamespace: Context with the verified user under request.user.
-    """
-    ctx = _make_request_context(verified_user)
+    ctx = _make_request_context(active_user)
 
     return ctx
 
