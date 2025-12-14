@@ -1,7 +1,11 @@
 from django.contrib import admin
+from django.utils.safestring import mark_safe
 
 from apps.documents.models.documents import Document, DocumentCategory, DocumentVersion
 from apps.documents_ai.admin import DocumentChunkInline
+from apps.documents_ai.renderers.structured_html import (
+    render_structured_content_to_html,
+)
 
 
 @admin.register(DocumentCategory)
@@ -226,6 +230,7 @@ class DocumentVersionAdmin(admin.ModelAdmin):
                 "fields": (
                     "is_structured_ready",
                     "structured_generated_at",
+                    "rendered_structured_preview",
                     "structured_content",
                     "structured_error",
                 ),
@@ -259,6 +264,7 @@ class DocumentVersionAdmin(admin.ModelAdmin):
         "structured_generated_at",
         "structured_content",
         "structured_error",
+        "rendered_structured_preview",
         "is_chunking_ready",
         "chunking_generated_at",
         "chunking_error",
@@ -267,3 +273,15 @@ class DocumentVersionAdmin(admin.ModelAdmin):
         "embeddings_error",
         "ai_summary",
     )
+
+    def rendered_structured_preview(self, obj: DocumentVersion) -> str:
+        """Render structured content as HTML preview."""
+        if not obj.structured_content:
+            return "No hay contenido estructurado."
+
+        blocks = obj.structured_content.get("blocks", [])
+        html = render_structured_content_to_html(blocks)
+
+        return mark_safe(html)
+
+    rendered_structured_preview.short_description = "Vista procesada (HTML)"

@@ -8,10 +8,9 @@ Block = Dict[str, Any]
 # REGEX PATTERNS (legal-focused)
 # =============================================================================
 
-# Generic article token: Art., Art, Artículo, Articulo + number.
 ARTICLE_TOKEN_RE = re.compile(
     r"""
-    (?P<label>                # 'Art', 'Art.', 'Articulo', 'Artículo'
+    (?P<label>
         (?:art(?:[íi]culo)?\.?)
     )
     \s*
@@ -24,25 +23,26 @@ ARTICLE_TOKEN_RE = re.compile(
     re.IGNORECASE | re.VERBOSE,
 )
 
-# Article at the start of the string.
 ARTICLE_AT_START_RE = re.compile(
     r"^\s*" + ARTICLE_TOKEN_RE.pattern,
     re.IGNORECASE | re.VERBOSE,
 )
 
-# TÍTULO / CAPÍTULO headings with roman numerals.
 TITLE_RE = re.compile(r"^T[ÍI]TULO\s+[IVXLC]+", re.IGNORECASE)
 CHAPTER_RE = re.compile(r"^CAP[ÍI]TULO\s+[IVXLC]+", re.IGNORECASE)
 
-# TÍTULO or CAPÍTULO appearing inside a larger paragraph (for extraction).
 INLINE_TITLE_RE = re.compile(r"T[ÍI]TULO\s+[IVXLC]+", re.IGNORECASE)
 INLINE_CHAPTER_RE = re.compile(r"CAP[ÍI]TULO\s+[IVXLC]+", re.IGNORECASE)
 
-# All-caps paragraphs promoted to headings.
 UPPERCASE_RE = re.compile(r"^[A-ZÁÉÍÓÚÜÑ0-9\-\s]+$")
 
-# Simple "a)" bullets at the beginning of the text.
 LETTER_AT_START_RE = re.compile(r"^[a-z]\)")
+
+# Bullet-like prefixes commonly found in DOCX exports.
+# Includes: •, ·, -, –, —, ▪, ▫, ○, ●, and emoji squares used as visual bullets.
+BULLET_PREFIX_RE = re.compile(
+    r"^\s*(?:[•·\-\u2013\u2014▪▫○●]|🟥|🟦|🟩|🟨|🔹|🔸|➡️|👉|✔|✅)\s+"
+)
 
 
 # =============================================================================
@@ -53,20 +53,11 @@ LETTER_AT_START_RE = re.compile(r"^[a-z]\)")
 def postprocess_blocks(blocks: List[Block]) -> List[Block]:
     """Full, legal-oriented post-processing pipeline for PDF/DOCX blocks.
 
-    The goal is to obtain a clean, legal-friendly structure for RAG over
-    laws, normas, directivas, etc.
+    Args:
+        blocks: Raw blocks extracted from PDF/DOCX parsing.
 
-    Steps:
-        1) Normalize whitespace.
-        2) Convert "> text" bullets to list_item.
-        3) Promote uppercase paragraphs to headings.
-        4) Extract inline TÍTULO / CAPÍTULO headings from big paragraphs.
-        5) Split big headings "TÍTULO II UNIVERSALIZACIÓN..." in two.
-        6) Promote "Artículo X..." paragraphs to headings.
-        7) Split blocks that contain multiple "Artículo X..." segments.
-        8) Split inline lists "a) ... b) ... c) ..." into list_item blocks.
-        9) Normalize heading levels (Título, Capítulo, Artículo, others).
-       10) Reindex block IDs to avoid duplicates.
+    Returns:
+        List[Block]: Normalized blocks ready for RAG and rendering.
     """
     blocks = _normalize_whitespace(blocks)
     blocks = _convert_bullets(blocks)
@@ -103,12 +94,28 @@ def _normalize_whitespace(blocks: List[Block]) -> List[Block]:
 
 
 def _convert_bullets(blocks: List[Block]) -> List[Block]:
-    """Convert '> text' style bullets into list_item blocks."""
+    """Convert common bullet styles into list_item blocks.
+
+    Handles:
+        - Markdown-like: "> text"
+        - Symbol bullets: "• text", "- text", "– text", "▪ text", etc.
+        - Emoji bullets used as UI markers.
+    """
     for block in blocks:
         text = block.get("text", "")
-        if isinstance(text, str) and text.startswith(">"):
+        if not isinstance(text, str):
+            continue
+
+        stripped = text.strip()
+
+        if stripped.startswith(">"):
             block["type"] = "list_item"
-            block["text"] = text.lstrip("> ").strip()
+            block["text"] = stripped.lstrip("> ").strip()
+            continue
+
+        if BULLET_PREFIX_RE.match(stripped):
+            block["type"] = "list_item"
+            block["text"] = BULLET_PREFIX_RE.sub("", stripped, count=1).strip()
 
     return blocks
 
@@ -141,12 +148,7 @@ def _promote_uppercase_to_heading(blocks: List[Block]) -> List[Block]:
 
 
 def _extract_inline_titles_and_chapters(blocks: List[Block]) -> List[Block]:
-    """Extract 'TÍTULO X' or 'CAPÍTULO X' from inside large paragraphs.
-
-    The rest of the paragraph is preserved. The user explicitly wants
-    at least 'TÍTULO I' to appear as a separate heading, even if the
-    surrounding text remains as a single paragraph.
-    """
+    """Extract 'TÍTULO X' or 'CAPÍTULO X' from inside large paragraphs."""
     new_blocks: List[Block] = []
 
     for block in blocks:
@@ -159,7 +161,6 @@ def _extract_inline_titles_and_chapters(blocks: List[Block]) -> List[Block]:
         title_match = INLINE_TITLE_RE.search(text)
         chapter_match = INLINE_CHAPTER_RE.search(text)
 
-        # Prefer TÍTULO over CAPÍTULO if both appear.
         match = title_match or chapter_match
         if not match:
             new_blocks.append(block)
@@ -177,7 +178,6 @@ def _extract_inline_titles_and_chapters(blocks: List[Block]) -> List[Block]:
         heading_block: Block = dict(block)
         heading_block["type"] = "heading"
         heading_block["text"] = heading_text
-        # Level is normalized later.
         heading_block.pop("level", None)
         new_blocks.append(heading_block)
 
@@ -195,10 +195,7 @@ def _extract_inline_titles_and_chapters(blocks: List[Block]) -> List[Block]:
 
 
 def _split_big_headings(blocks: List[Block]) -> List[Block]:
-    """Split 'TÍTULO II UNIVERSALIZACIÓN...' into two heading blocks.
-
-    Works similarly for 'CAPÍTULO I DISPOSICIONES GENERALES'.
-    """
+    """Split 'TÍTULO II UNIVERSALIZACIÓN...' into two heading blocks."""
     new_blocks: List[Block] = []
 
     pattern = re.compile(
@@ -230,7 +227,6 @@ def _split_big_headings(blocks: List[Block]) -> List[Block]:
 
         subtitle_block: Block = dict(block)
         subtitle_block["text"] = rest_text
-        # Subtitle level is normalized later.
         subtitle_block.pop("level", None)
         new_blocks.append(subtitle_block)
 
@@ -253,7 +249,6 @@ def _promote_articles_to_headings(blocks: List[Block]) -> List[Block]:
 
         if ARTICLE_AT_START_RE.match(text):
             block["type"] = "heading"
-            # Level is set later in _normalize_heading_levels.
             block.pop("level", None)
 
     return blocks
@@ -265,11 +260,7 @@ def _promote_articles_to_headings(blocks: List[Block]) -> List[Block]:
 
 
 def _split_article_fusions(blocks: List[Block]) -> List[Block]:
-    """Split blocks that contain multiple 'Artículo X...' segments.
-
-    Each resulting part is turned into an independent heading-like block.
-    The body text remains attached to its article in the same block.
-    """
+    """Split blocks that contain multiple 'Artículo X...' segments."""
     new_blocks: List[Block] = []
 
     for block in blocks:
@@ -320,7 +311,6 @@ def _split_inline_lettered_lists(blocks: List[Block]) -> List[Block]:
             new_blocks.append(block)
             continue
 
-        # If it already starts with "a)" etc., just convert to list_item.
         if item_pattern.match(text) and LETTER_AT_START_RE.match(text):
             new_block = dict(block)
             new_block["type"] = "list_item"
@@ -332,8 +322,6 @@ def _split_inline_lettered_lists(blocks: List[Block]) -> List[Block]:
             new_blocks.append(block)
             continue
 
-        # Optional leading text before the first bullet (often a sentence
-        # tipo "Son fines de la educación peruana:").
         leading = text[: matches[0].start()].strip()
         if leading:
             leading_block: Block = dict(block)

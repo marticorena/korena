@@ -1,4 +1,7 @@
-from typing import Any, Dict, List, Tuple
+# apps/documents_ai/parsers/docx_parser.py
+from __future__ import annotations
+
+from typing import Any, Dict, Iterable, List, Tuple
 
 from docx import Document as DocxDocument
 from docx.table import Table as DocxTable
@@ -12,20 +15,15 @@ Block = Dict[str, Any]
 def parse_docx_to_structured(path: str) -> Dict[str, Any]:
     """Extract a minimal structured representation from a DOCX file.
 
-    Note:
-        DOCX does not expose page numbers, so "page" is set to None.
+    Notes:
+        - DOCX doesn't expose reliable page numbers, so "page" is None.
+        - Lists are detected via numbering properties (numPr) and style/text fallbacks.
+
+    Args:
+        path: Absolute or relative path to the DOCX file.
 
     Returns:
-        Dict[str, Any]: A dict with the same structure as the PDF parser:
-            {
-                "blocks": [
-                    {"id": "b1", "type": "heading", "level": 1, "text": "...", "page": None},
-                    {"id": "b2", "type": "paragraph", "text": "...", "page": None},
-                    {"id": "b3", "type": "list_item", "text": "...", "page": None},
-                    {"id": "b4", "type": "table", "columns": [...], "rows": [...], "page": None},
-                    ...
-                ]
-            }
+        Dict[str, Any]: {"blocks": [...]} structure compatible with the PDF parser.
     """
     doc = DocxDocument(path)
     blocks: List[Block] = []
@@ -33,7 +31,7 @@ def parse_docx_to_structured(path: str) -> Dict[str, Any]:
 
     for item in _iter_block_items(doc):
         if isinstance(item, DocxParagraph):
-            text = item.text.strip()
+            text = (item.text or "").strip()
             if not text:
                 continue
 
@@ -53,7 +51,7 @@ def parse_docx_to_structured(path: str) -> Dict[str, Any]:
                 block_id += 1
                 continue
 
-            if _is_list_paragraph(style_name):
+            if _is_list_paragraph(item, style_name):
                 blocks.append(
                     {
                         "id": f"b{block_id}",
@@ -74,8 +72,9 @@ def parse_docx_to_structured(path: str) -> Dict[str, Any]:
                 }
             )
             block_id += 1
+            continue
 
-        elif isinstance(item, DocxTable):
+        if isinstance(item, DocxTable):
             table_struct = _parse_table(item)
             if table_struct["rows"]:
                 blocks.append(
@@ -94,7 +93,7 @@ def parse_docx_to_structured(path: str) -> Dict[str, Any]:
     return {"blocks": processed_blocks}
 
 
-def _iter_block_items(parent: Any):
+def _iter_block_items(parent: Any) -> Iterable[Any]:
     """Yield paragraphs and tables in document order."""
     from docx.oxml.table import CT_Tbl  # type: ignore
     from docx.oxml.text.paragraph import CT_P  # type: ignore
@@ -125,14 +124,17 @@ def _safe_style_name(paragraph: DocxParagraph) -> str:
 def _classify_heading(style_name: str) -> Tuple[bool, int]:
     """Determine if a paragraph style looks like a heading.
 
+    Args:
+        style_name: Lowercase style name.
+
     Returns:
         Tuple[bool, int]: (is_heading, level).
     """
     if not style_name:
         return False, 0
 
-    if "heading" in style_name:
-        for digit in range(1, 7):
+    if "heading" in style_name or "título" in style_name or "titulo" in style_name:
+        for digit in range(1, 10):
             if str(digit) in style_name:
                 return True, digit
 
@@ -141,30 +143,108 @@ def _classify_heading(style_name: str) -> Tuple[bool, int]:
     return False, 0
 
 
-def _is_list_paragraph(style_name: str) -> bool:
-    """Determine if a paragraph style is likely a list item."""
-    if not style_name:
+def _has_numbering(paragraph: DocxParagraph) -> bool:
+    """Return True if the paragraph has numbering properties (numPr).
+
+    This is the most reliable way to detect DOCX lists even when the style
+    name is not "List Paragraph" or doesn't contain "bullet".
+    """
+    try:
+        p = paragraph._p  # pylint: disable=protected-access
+        p_pr = getattr(p, "pPr", None)
+        if p_pr is None:
+            return False
+
+        num_pr = getattr(p_pr, "numPr", None)
+        if num_pr is None:
+            return False
+
+        num_id = getattr(num_pr, "numId", None)
+        ilvl = getattr(num_pr, "ilvl", None)
+
+        return num_id is not None or ilvl is not None
+    except Exception:
         return False
 
-    if "bullet" in style_name:
-        return True
-    if "list" in style_name:
-        return True
-    if style_name.strip() == "list paragraph":
+
+def _looks_like_bulleted_text(text: str) -> bool:
+    """Fallback heuristic for bullet-like prefixes in plain text."""
+    stripped = text.strip()
+    if not stripped:
+        return False
+
+    bullet_prefixes = (
+        "•",
+        "·",
+        "-",
+        "–",
+        "—",
+        "▪",
+        "▫",
+        "○",
+        "●",
+        "🟥",
+        "🟦",
+        "🟩",
+        "🟨",
+        "🔹",
+        "🔸",
+        "👉",
+        "➡️",
+        "✔",
+        "✅",
+    )
+
+    return stripped.startswith(bullet_prefixes)
+
+
+def _is_list_paragraph(paragraph: DocxParagraph, style_name: str) -> bool:
+    """Determine if a paragraph is likely a list item.
+
+    Priority:
+        1) numPr present (true DOCX list)
+        2) style hints (bullet/list)
+        3) text prefix fallback (•, -, emoji bullets)
+
+    Args:
+        paragraph: Docx paragraph object.
+        style_name: Lowercase style name.
+
+    Returns:
+        bool: True if the paragraph should be treated as list_item.
+    """
+    if _has_numbering(paragraph):
         return True
 
-    return False
+    if style_name:
+        if "bullet" in style_name:
+            return True
+        if "list" in style_name:
+            return True
+        if style_name.strip() == "list paragraph":
+            return True
+
+    text = (paragraph.text or "").strip()
+
+    return _looks_like_bulleted_text(text)
 
 
 def _parse_table(table: DocxTable) -> Dict[str, List[List[str]]]:
-    """Convert a python-docx Table into a simple (columns, rows) structure."""
+    """Convert a python-docx Table into a simple (columns, rows) structure.
+
+    Args:
+        table: python-docx table instance.
+
+    Returns:
+        Dict[str, List[List[str]]]: {"columns": [...], "rows": [...]}.
+    """
     rows: List[List[str]] = []
 
     for row in table.rows:
         row_cells: List[str] = []
         for cell in row.cells:
             cell_text = "\n".join(
-                [p.text.strip() for p in cell.paragraphs if p.text.strip()]
+                [p.text.strip() for p in cell.paragraphs if (p.text or "").strip()]
             ).strip()
             row_cells.append(cell_text)
         rows.append(row_cells)
