@@ -16,14 +16,12 @@ class DocumentCategoryAdmin(admin.ModelAdmin):
         "code",
         "name",
         "level",
-        "is_official",
         "minedu_reference",
     )
-    list_filter = ("level", "is_official")
+    list_filter = ("level",)
     search_fields = ("code", "name", "description", "minedu_reference")
     ordering = ("level", "name")
     prepopulated_fields = {"code": ("name",)}
-    list_editable = ("is_official",)
 
     fieldsets = (
         (None, {"fields": ("code", "name", "description")}),
@@ -32,7 +30,6 @@ class DocumentCategoryAdmin(admin.ModelAdmin):
             {
                 "fields": (
                     "level",
-                    "is_official",
                     "minedu_reference",
                 ),
             },

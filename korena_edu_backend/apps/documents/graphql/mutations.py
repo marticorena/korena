@@ -43,7 +43,6 @@ def _map_document_category_model(instance: DocumentCategory) -> DocumentCategory
         name=instance.name,
         description=instance.description or None,
         level=instance.level,
-        is_official=instance.is_official,
         minedu_reference=instance.minedu_reference or None,
     )
 
@@ -146,14 +145,12 @@ class DocumentMutations:
         name: str,
         level: str,
         description: Optional[str] = None,
-        is_official: bool = False,
         minedu_reference: Optional[str] = None,
     ) -> CreateDocumentCategoryPayload:
         """Create a new document category configuration.
 
         Any verified user can create new document categories so the taxonomy
-        can grow organically from real usage. However, only staff or superusers
-        are allowed to mark a category as `is_official=True`.
+        can grow organically from real usage.
 
         Args:
             info: GraphQL resolver info object.
@@ -161,29 +158,17 @@ class DocumentMutations:
             name: Human-friendly name for this document category.
             level: Level to which this category belongs (STATE, SCHOOL, TEACHER, CLASSROOM).
             description: Optional description of the category.
-            is_official: Requested official flag. For non-staff users this
-                will always be treated as False.
             minedu_reference: Optional reference used by MINEDU (family, internal code, etc.).
 
         Returns:
             CreateDocumentCategoryPayload: Payload containing the created category.
 
         Raises:
-            GraphQLError: If the code already exists or the level is invalid,
-                or if a non-staff user tries to mark the category as official.
+            GraphQLError: If the code already exists or the level is invalid.
         """
-        user = info.context.request.user
-        user_is_admin = getattr(user, "is_staff", False) or getattr(
-            user, "is_superuser", False
-        )
-
         # Enforce uniqueness of the code.
         if DocumentCategory.objects.filter(code=code).exists():
             raise GraphQLError(ERROR_MESSAGES["documents.category_code_already_exists"])
-
-        # Non-admin users cannot create official categories.
-        if is_official and not user_is_admin:
-            raise GraphQLError(ERROR_MESSAGES["documents.category_official_forbidden"])
 
         try:
             document_category = DocumentCategory.objects.create(
@@ -191,7 +176,6 @@ class DocumentMutations:
                 name=name,
                 description=description or "",
                 level=level,
-                is_official=is_official if user_is_admin else False,
                 minedu_reference=minedu_reference or "",
             )
         except ValueError as exc:

@@ -19,8 +19,7 @@ class DocumentCategory(models.Model):
     """Configuration category describing a family of documents.
 
     A category defines metadata and constraints used across documents,
-    such as level (state, school, teacher, classroom) and whether it is
-    an official MINEDU-related document.
+    such as level (state, school, teacher, classroom).
     """
 
     code = models.SlugField(unique=True)
@@ -30,14 +29,6 @@ class DocumentCategory(models.Model):
     level = models.CharField(
         max_length=20,
         choices=DocumentLevel.choices,
-    )
-
-    is_official = models.BooleanField(
-        default=False,
-        help_text=(
-            "Marcar como verdadero cuando esta categoría corresponda "
-            "a normas oficiales del MINEDU/Estado."
-        ),
     )
 
     minedu_reference = models.CharField(
@@ -100,16 +91,6 @@ class Document(DocumentVersioningMetadata, NormativeDocumentMetadata):
 
     def __str__(self) -> str:
         return self.title
-
-    @property
-    def is_official(self) -> bool:
-        """Whether this document belongs to an official MINEDU category.
-
-        Returns:
-            bool: True when the category is marked as official.
-        """
-
-        return self.category.is_official
 
 
 class DocumentVersion(

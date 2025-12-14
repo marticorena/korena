@@ -203,7 +203,6 @@ def test_create_document_category_creates_new_category_for_verified_user(
 
     assert category.name == "Programación Anual"
     assert category.level == DocumentLevel.TEACHER
-    assert category.is_official is False
 
 
 def test_create_document_type_fails_when_code_already_exists(
@@ -264,31 +263,4 @@ def test_create_document_type_requires_verified_user(
     error = result.errors[0]
 
     assert error.message == ERROR_MESSAGES["auth.not_verified"]
-    assert result.data is None
-
-
-def test_create_document_type_forbids_non_admin_official_flag(
-    gql_client: Any,
-    verified_context,
-) -> None:
-    """createDocumentCategory should reject non-admin users marking isOfficial=True."""
-    variables: Dict[str, Any] = {
-        "code": "norma-oficial-usuario",
-        "name": "Norma oficial por usuario",
-        "level": DocumentLevel.STATE,
-        "description": "Intento de marcar oficial desde usuario regular",
-        "isOfficial": True,
-        "mineduReference": "RVM-TEST",
-    }
-
-    result = gql_client.execute_sync(
-        CREATE_DOCUMENT_CATEGORY_MUTATION,
-        variable_values=variables,
-        context_value=verified_context,
-    )
-
-    assert result.errors is not None
-    error = result.errors[0]
-
-    assert error.message == ERROR_MESSAGES["documents.category_official_forbidden"]
     assert result.data is None

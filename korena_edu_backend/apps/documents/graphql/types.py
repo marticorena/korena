@@ -16,7 +16,6 @@ class DocumentCategoryType:
     name: str
     description: str
     level: str
-    is_official: bool
     minedu_reference: str
 
 

@@ -14,7 +14,6 @@ def helper_test_create_document_category(
         name=f"Documento {level}",
         description="Tipo de prueba",
         level=level,
-        is_official=False,
     )
 
     return category
