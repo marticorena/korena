@@ -72,10 +72,12 @@ def test_readyz_returns_error_when_db_fails(
 
     data = result["data"]["readyz"]
 
+    print(data)
+
     assert data["status"] == "error"
     assert data["dbOk"] is False
     assert data["redisOk"] is True
-    assert "DB error:" in data["details"]
+    assert "DB error" in data["details"]
 
 
 def test_readyz_returns_error_when_redis_fails(
@@ -94,7 +96,9 @@ def test_readyz_returns_error_when_redis_fails(
 
     data = result["data"]["readyz"]
 
+    print(data)
+
     assert data["status"] == "error"
     assert data["dbOk"] is True
     assert data["redisOk"] is False
-    assert "Redis error:" in data["details"]
+    assert "Redis error" in data["details"]

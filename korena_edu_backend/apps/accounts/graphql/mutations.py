@@ -28,21 +28,23 @@ class AccountMutations:
     @strawberry.mutation(name="loginUser")
     def login_user(self, info: Info, email: str, password: str) -> TokenPair:
         """Authenticate user and return an access + refresh token pair."""
+        user = authenticate(email=email, password=password)
+
+        if not user:
+            raise ValueError(ERROR_MESSAGES["auth.invalid_credentials"])
+
+        if not user.is_active:
+            raise ValueError(ERROR_MESSAGES["auth.not_active"])
+
+        if not getattr(user, "is_verified", False):
+            raise PermissionError(ERROR_MESSAGES["auth.not_verified"])
+
         serializer = TokenObtainPairSerializer(
             data={"email": email, "password": password},
             context={"request": info.context.request},
         )
-
         if not serializer.is_valid():
             raise ValueError(ERROR_MESSAGES["auth.invalid_credentials"])
-
-        user = authenticate(email=email, password=password)
-
-        if not user or not user.is_active:
-            raise ValueError(ERROR_MESSAGES["auth.not_authenticated"])
-
-        if not getattr(user, "is_verified", False):
-            raise PermissionError(ERROR_MESSAGES["auth.not_verified"])
 
         tokens = serializer.validated_data
 

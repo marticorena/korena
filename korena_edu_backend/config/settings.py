@@ -40,7 +40,6 @@ INSTALLED_APPS = [
     "apps.core",
     "apps.documents",
     "apps.notifications",
-    "apps.planning",
     "apps.schools",
 ]
 

@@ -31,6 +31,7 @@ FORM_FIELD_ERROR_MESSAGES: Dict[str, str] = {
 AUTH_ERROR_MESSAGES: Dict[str, str] = {
     "auth.invalid_credentials": "Credenciales inválidas.",
     "auth.not_authenticated": "No autenticado.",
+    "auth.not_active": "Cuenta inactiva.",
     "auth.not_verified": "Cuenta no verificada.",
     "auth.invalid_current_password": "La contraseña actual es incorrecta.",
     "auth.user_not_found": "Usuario no encontrado.",
