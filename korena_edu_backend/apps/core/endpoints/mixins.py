@@ -1,11 +1,7 @@
 from typing import Any
 
-from apps.core.endpoints.utils import check_verified_user
+from apps.core.endpoints.utils import check_authenticated_user, check_verified_user
 from apps.core.messages import ERROR_MESSAGES
-
-
-def _is_authenticated_user(user: Any | None) -> bool:
-    return bool(user and getattr(user, "is_authenticated", False))
 
 
 class AuthenticatedUserPermissionMixin:
@@ -22,7 +18,7 @@ class AuthenticatedUserPermissionMixin:
         Returns:
             True if user is authenticated, False otherwise.
         """
-        if not _is_authenticated_user(user):
+        if not check_authenticated_user(user):
             self.message = ERROR_MESSAGES["auth.not_authenticated"]
 
             return False
@@ -44,7 +40,7 @@ class VerifiedUserPermissionMixin:
         Returns:
             True if user is verified, False otherwise.
         """
-        if not _is_authenticated_user(user):
+        if not check_authenticated_user(user):
             self.message = ERROR_MESSAGES["auth.not_authenticated"]
 
             return False

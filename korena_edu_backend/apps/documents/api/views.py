@@ -15,11 +15,6 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from apps.core.endpoints.permissions import IsAuthenticatedRest, IsVerifiedRest
 from apps.core.endpoints.utils import graphql_style_error_response
 from apps.core.messages import ERROR_MESSAGES
-from apps.core.metrics import (
-    document_upload_duration_seconds,
-    document_versions_uploaded_total,
-    documents_by_level_total,
-)
 from apps.documents.api.serializers import DocumentVersionSerializer
 from apps.documents.models.documents import (
     Document,
@@ -114,27 +109,22 @@ class DocumentVersionUploadView(APIView):
         original_filename = getattr(uploaded_file, "name", "")
         mime_type = getattr(uploaded_file, "content_type", "") or ""
 
-        with document_upload_duration_seconds.time():
-            # Create the new version as DRAFT; promotion to ACTIVE can be
-            # handled in a separate flow if needed.
-            version = DocumentVersion.objects.create(
-                document=document,
-                file=uploaded_file,
-                status=DocumentVersionStatus.DRAFT,
-                created_by=user,
-                original_filename=original_filename,
-                mime_type=mime_type,
-                # page_count, language, checksum, extracted_text, etc.
-                # will be filled later by background processing.
-            )
+        # Create the new version as DRAFT; promotion to ACTIVE can be
+        # handled in a separate flow if needed.
+        version = DocumentVersion.objects.create(
+            document=document,
+            file=uploaded_file,
+            status=DocumentVersionStatus.DRAFT,
+            created_by=user,
+            original_filename=original_filename,
+            mime_type=mime_type,
+            # page_count, language, checksum, extracted_text, etc.
+            # will be filled later by background processing.
+        )
 
-            # Update the current_version pointer to this new version.
-            document.current_version = version
-            document.save(update_fields=["current_version", "updated_at"])
-
-        # Metrics: count uploaded versions and documents per level.
-        document_versions_uploaded_total.inc()
-        documents_by_level_total.labels(level=document.category.level).inc()
+        # Update the current_version pointer to this new version.
+        document.current_version = version
+        document.save(update_fields=["current_version", "updated_at"])
 
         serializer = DocumentVersionSerializer(version)
         payload: Dict[str, Any] = {

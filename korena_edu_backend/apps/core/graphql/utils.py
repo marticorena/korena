@@ -24,7 +24,12 @@ def build_form_errors(form: Form) -> list[FieldError]:
             default_message = str(err.get("message") or "")
 
             field_code_key = f"{field}.{code}"
-            message = ERROR_MESSAGES.get(field_code_key, default_message)
+
+            message = (
+                ERROR_MESSAGES.get(field_code_key)
+                or ERROR_MESSAGES.get(code)
+                or default_message
+            )
 
             result.append(
                 {
@@ -38,13 +43,7 @@ def build_form_errors(form: Form) -> list[FieldError]:
 
 
 def assert_field_error(fields: list[FieldError], field: str, code: str) -> None:
-    """Assert that a field error with the given code exists.
-
-    Args:
-        fields: List of field error dicts.
-        field: Expected field name.
-        code: Expected error code.
-    """
+    """Assert that a field error with the given code exists."""
     assert any(
         item["field"] == field and item["code"] == code for item in fields
     ), f"Expected error for field '{field}' with code '{code}' not found. Got: {fields}"

@@ -1,1 +1,5 @@
-APOLLO_INTERNAL_ERROR = "Ocurrió un error interno en el servidor."
+"""
+GraphQL user-facing messages and constants.
+"""
+
+APOLLO_INTERNAL_ERROR = "Error interno del servidor."

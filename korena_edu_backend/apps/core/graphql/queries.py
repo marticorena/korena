@@ -7,6 +7,27 @@ from strawberry.types import Info
 from apps.core.graphql.types import HealthStatusType
 
 
+def _check_db() -> tuple[bool, str | None]:
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1;")
+            cursor.fetchone()
+
+        return True, None
+    except Exception:
+        return False, "DB error"
+
+
+def _check_redis() -> tuple[bool, str | None]:
+    try:
+        redis_conn = get_redis_connection("default")
+        redis_conn.ping()
+
+        return True, None
+    except Exception:
+        return False, "Redis error"
+
+
 @strawberry.type
 class HealthQueries:
     """GraphQL health and readiness probes."""
@@ -25,25 +46,15 @@ class HealthQueries:
     @strawberry.field(description="Readiness probe.")
     def readyz(self, info: Info) -> HealthStatusType:
         """Readiness: DB + Redis must be ready."""
-
         errors: list[str] = []
 
-        try:
-            with connection.cursor() as cursor:
-                cursor.execute("SELECT 1;")
-                cursor.fetchone()
-            db_ok = True
-        except Exception as exc:
-            db_ok = False
-            errors.append(f"DB error: {exc}")
+        db_ok, db_error = _check_db()
+        if db_error:
+            errors.append(db_error)
 
-        try:
-            redis_conn = get_redis_connection("default")
-            redis_conn.ping()
-            redis_ok = True
-        except Exception as exc:
-            redis_ok = False
-            errors.append(f"Redis error: {exc}")
+        redis_ok, redis_error = _check_redis()
+        if redis_error:
+            errors.append(redis_error)
 
         overall_status = "ok" if db_ok and redis_ok else "error"
 

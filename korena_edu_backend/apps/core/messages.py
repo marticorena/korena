@@ -1,8 +1,12 @@
 """
 Centralized error and user-facing messages.
 
-This module defines structured dictionaries for different error domains
-and then exposes a single merged ERROR_MESSAGES mapping for global use.
+This module defines user-facing messages indexed by:
+- form field + code (e.g. "email.unique")
+- generic validation codes (e.g. "required", "invalid")
+- domain-specific codes (e.g. "auth.not_authenticated")
+
+All messages are merged into ERROR_MESSAGES for global use.
 """
 
 from typing import Dict

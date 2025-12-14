@@ -1,10 +1,11 @@
 from typing import Callable
 
-from django.contrib.auth.models import AnonymousUser
 from django.http import HttpRequest, HttpResponse
 
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import AuthenticationFailed
+
+from apps.core.endpoints.utils import check_authenticated_user
 
 
 class SimpleJWTAuthenticationMiddleware:
@@ -15,41 +16,26 @@ class SimpleJWTAuthenticationMiddleware:
     """
 
     def __init__(self, get_response: Callable[..., HttpResponse]) -> None:
-        """Initialize middleware with the next callable in the chain.
-
-        Args:
-            get_response: Next middleware or view callable.
-        """
         self.get_response = get_response
 
     def __call__(self, request: HttpRequest) -> HttpResponse:
-        """Authenticate the request using SimpleJWT if an Authorization header exists.
+        auth_header = request.META.get("HTTP_AUTHORIZATION", "")
 
-        Args:
-            request: Incoming HTTP request.
+        if auth_header and auth_header.startswith("Bearer "):
+            is_auth, _ = check_authenticated_user(getattr(request, "user", None))
 
-        Returns:
-            HTTP response.
-        """
-        user = getattr(request, "user", None)
-        is_anon = isinstance(user, AnonymousUser) or not getattr(
-            user,
-            "is_authenticated",
-            False,
-        )
+            if not is_auth:
+                authenticator = JWTAuthentication()
 
-        if is_anon:
-            authenticator = JWTAuthentication()
-            try:
-                auth_result = authenticator.authenticate(request)
-            except AuthenticationFailed:
-                auth_result = None
+                try:
+                    auth_result = authenticator.authenticate(request)
+                except AuthenticationFailed:
+                    auth_result = None
 
-            if auth_result is not None:
-                auth_user, token = auth_result
-                # Attach user and token so Strawberry permissions can use them.
-                request.user = auth_user
-                request.auth = token
+                if auth_result is not None:
+                    auth_user, token = auth_result
+                    request.user = auth_user
+                    request.auth = token
 
         response = self.get_response(request)
 

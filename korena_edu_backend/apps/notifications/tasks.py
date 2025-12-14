@@ -6,14 +6,12 @@ from django.utils import timezone
 
 from celery import shared_task
 
-from apps.core.metrics import emails_sent_total, track_celery_task
 from apps.notifications.models import EmailLog, EmailStatus
 
 logger = logging.getLogger(__name__)
 
 
 @shared_task(bind=True, max_retries=3)
-@track_celery_task("send_email_task")
 def send_email_task(self, email_log_id: int) -> None:
     """Send an email asynchronously and update the EmailLog entry.
 
@@ -47,9 +45,6 @@ def send_email_task(self, email_log_id: int) -> None:
         log.last_attempt_at = now
         log.save(update_fields=["status", "sent_at", "last_attempt_at"])
 
-        # Mark email as successfully sent
-        emails_sent_total.labels(status="sent").inc()
-
     except Exception as exc:
         # Update failure state
         now = timezone.now()
@@ -60,9 +55,6 @@ def send_email_task(self, email_log_id: int) -> None:
         log.save(
             update_fields=["status", "retries", "error_message", "last_attempt_at"]
         )
-
-        # Mark email as failed
-        emails_sent_total.labels(status="failed").inc()
 
         logger.exception(
             "Error sending email (EmailLog id=%s). Attempt #%s",

@@ -6,10 +6,8 @@ from strawberry.types import Info
 
 from apps.core.endpoints.permissions import IsAuthenticatedGraphql, IsVerifiedGraphql
 from apps.core.messages import ERROR_MESSAGES
-from apps.core.metrics import documents_created_total
 from apps.documents.graphql.types import DocumentCategoryType, DocumentType
 from apps.documents.models.documents import Document, DocumentCategory
-from config.graphql.extensions import GraphQLOperationMetricsExtension
 
 
 @strawberry.type
@@ -56,7 +54,6 @@ class DocumentMutations:
 
     @strawberry.mutation(
         permission_classes=[IsAuthenticatedGraphql, IsVerifiedGraphql],
-        extensions=[GraphQLOperationMetricsExtension("create_document")],
         name="createDocument",
     )
     def create_document(
@@ -111,13 +108,10 @@ class DocumentMutations:
             description=resolved_description,
         )
 
-        documents_created_total.inc()
-
         return CreateDocumentPayload(document=document)
 
     @strawberry.mutation(
         permission_classes=[IsAuthenticatedGraphql, IsVerifiedGraphql],
-        extensions=[GraphQLOperationMetricsExtension("create_document_category")],
         name="createDocumentCategory",
     )
     def create_document_category(

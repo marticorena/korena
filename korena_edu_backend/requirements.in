@@ -5,7 +5,6 @@ django-cors-headers==4.9.0
 
 # DATABASE
 psycopg2-binary==2.9.11
-pgvector==0.3.5
 
 # GRAPHQL
 strawberry-graphql>=0.287,<0.288
@@ -28,17 +27,9 @@ channels-redis==4.3.0
 celery==5.5.3
 redis>=6.0,<8.0
 
-# DOCUMENT PROCESSING
-PyMuPDF==1.26.6
-python-docx==1.2.0
-
-# EMBEDDINGS / ML
-fastembed==0.4.2
-
 # SECURITY / UTILITIES
 python-decouple==3.8
 bcrypt==5.0.0
-prometheus-client>=0.23,<0.24
 premailer==3.10.0
 
 # SECURITY PATCHES (Dependabot)

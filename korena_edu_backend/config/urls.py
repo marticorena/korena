@@ -4,7 +4,6 @@ from django.views.decorators.csrf import csrf_exempt
 
 from strawberry.django.views import GraphQLView
 
-from apps.core.metrics import metrics_view
 from apps.documents.api.views import DocumentVersionUploadView
 from config.schema import schema
 
@@ -25,5 +24,4 @@ urlpatterns = [
         csrf_exempt(DocumentVersionUploadView.as_view()),
         name="document-version-upload",
     ),
-    path("metrics/", metrics_view, name="metrics"),
 ]
