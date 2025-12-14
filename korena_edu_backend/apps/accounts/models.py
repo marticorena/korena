@@ -1,38 +1,26 @@
-from typing import Any, Optional
+from typing import Any
 
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.contrib.auth.models import PermissionsMixin
 from django.db import models
-from django.utils import timezone
 
 
 class UserManager(BaseUserManager):
-    """Custom user manager for handling user creation.
-
-    Provides user and superuser creation logic. Normalizes emails and
-    ensures required flags for admin accounts are set.
-    """
+    """Custom user manager for handling user creation."""
 
     def create_user(
-        self, email: str, password: Optional[str] = None, **extra_fields: Any
+        self, email: str, password: str | None = None, **extra_fields: Any
     ) -> "User":
-        """Create a standard user.
-
-        Args:
-            email (str): User email (required).
-            password (Optional[str]): Raw password to set.
-            extra_fields (Any): Additional fields for the model.
-
-        Raises:
-            ValueError: If email is missing.
-
-        Returns:
-            User: Newly created user instance.
-        """
+        """Create and save a standard user."""
         if not email:
             raise ValueError("Users must have an email address.")
 
         email = self.normalize_email(email)
+
+        # Ensure safe defaults
+        extra_fields.setdefault("is_active", True)
+        extra_fields.setdefault("is_staff", False)
+        extra_fields.setdefault("is_verified", False)
 
         user: User = self.model(email=email, **extra_fields)
         user.set_password(password)
@@ -41,44 +29,28 @@ class UserManager(BaseUserManager):
         return user
 
     def create_superuser(
-        self, email: str, password: Optional[str] = None, **extra_fields: Any
+        self, email: str, password: str | None = None, **extra_fields: Any
     ) -> "User":
-        """Create a superuser.
-
-        Args:
-            email (str): Email for the superuser.
-            password (Optional[str]): Raw password.
-            extra_fields (Any): Additional fields.
-
-        Raises:
-            ValueError: If superuser flags are incorrect.
-
-        Returns:
-            User: Superuser instance.
-        """
+        """Create and save a superuser."""
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
         extra_fields.setdefault("role", User.Role.SUPER_ADMIN)
         extra_fields.setdefault("is_verified", True)
+        extra_fields.setdefault("is_active", True)
 
         if extra_fields.get("is_staff") is not True:
             raise ValueError("Superuser must have is_staff=True.")
         if extra_fields.get("is_superuser") is not True:
             raise ValueError("Superuser must have is_superuser=True.")
 
-        return self.create_user(email, password, **extra_fields)
+        return self.create_user(email=email, password=password, **extra_fields)
 
 
 class User(AbstractBaseUser, PermissionsMixin):
     """Main user model for the Korena system.
 
-    Extends Django's AbstractBaseUser and PermissionsMixin.
     Email is used as the unique identifier for authentication.
     """
-
-    email = models.EmailField(unique=True)
-    first_name = models.CharField(max_length=120, blank=True)
-    last_name = models.CharField(max_length=120, blank=True)
 
     class Role(models.TextChoices):
         """Different roles available in the system."""
@@ -86,6 +58,10 @@ class User(AbstractBaseUser, PermissionsMixin):
         TEACHER = "TEACHER", "Teacher"
         SCHOOL_ADMIN = "SCHOOL_ADMIN", "School admin"
         SUPER_ADMIN = "SUPER_ADMIN", "Super admin"
+
+    email = models.EmailField(unique=True)
+    first_name = models.CharField(max_length=120, blank=True, default="")
+    last_name = models.CharField(max_length=120, blank=True, default="")
 
     role = models.CharField(
         max_length=32,
@@ -97,7 +73,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False)
     is_verified = models.BooleanField(default=False)
 
-    date_joined = models.DateTimeField(default=timezone.now)
+    date_joined = models.DateTimeField(auto_now_add=True)
 
     school = models.ForeignKey(
         "schools.School",
@@ -107,11 +83,19 @@ class User(AbstractBaseUser, PermissionsMixin):
         related_name="users",
     )
 
-    USERNAME_FIELD: str = "email"
+    USERNAME_FIELD = "email"
+    EMAIL_FIELD = "email"
     REQUIRED_FIELDS: list[str] = []
 
-    objects: UserManager = UserManager()
+    objects = UserManager()
 
     def __str__(self) -> str:
-        """Return the string representation of the user."""
         return self.email
+
+    def get_full_name(self) -> str:
+        full_name = f"{self.first_name} {self.last_name}".strip()
+
+        return full_name or self.email
+
+    def get_short_name(self) -> str:
+        return self.first_name or self.email

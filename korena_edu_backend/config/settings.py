@@ -39,7 +39,6 @@ INSTALLED_APPS = [
     "apps.accounts",
     "apps.core",
     "apps.documents",
-    "apps.documents_ai",
     "apps.notifications",
     "apps.planning",
     "apps.schools",

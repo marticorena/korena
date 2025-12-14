@@ -1,5 +1,3 @@
-from typing import Optional
-
 import strawberry.django
 
 from apps.accounts.models import User
@@ -7,10 +5,7 @@ from apps.accounts.models import User
 
 @strawberry.type
 class TokenPair:
-    """Pair of access and refresh JWT tokens returned after authentication.
-
-    This type is used in authentication-related mutations.
-    """
+    """Pair of access and refresh JWT tokens returned after authentication."""
 
     access: str
     refresh: str
@@ -18,10 +13,7 @@ class TokenPair:
 
 @strawberry.django.type(User)
 class UserType:
-    """GraphQL type representing a safe view of the User model.
-
-    Only exposes non-sensitive fields that are safe to share with clients.
-    """
+    """GraphQL type representing a safe view of the User model."""
 
     id: strawberry.ID
     email: str
@@ -29,7 +21,6 @@ class UserType:
     last_name: str
     role: str
     is_verified: bool
-    avatar_url: Optional[str]
 
 
 @strawberry.type

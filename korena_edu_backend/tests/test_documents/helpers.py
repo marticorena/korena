@@ -28,7 +28,6 @@ def helper_test_create_document(
     """Create a Document for tests."""
     document = Document.objects.create(
         owner=owner,
-        school=None,
         category=category,
         title=title,
         description=description,

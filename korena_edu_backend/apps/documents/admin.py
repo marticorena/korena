@@ -1,11 +1,6 @@
 from django.contrib import admin
-from django.utils.safestring import mark_safe
 
 from apps.documents.models.documents import Document, DocumentCategory, DocumentVersion
-from apps.documents_ai.admin import DocumentChunkInline
-from apps.documents_ai.renderers.structured_html import (
-    render_structured_content_to_html,
-)
 
 
 @admin.register(DocumentCategory)
@@ -50,23 +45,9 @@ class DocumentVersionInline(admin.TabularInline):
         "created_by",
         "created_at",
         "page_count",
-        "is_structured_ready",
-        "structured_generated_at",
-        "is_chunking_ready",
-        "chunking_generated_at",
-        "is_embeddings_ready",
-        "embeddings_generated_at",
     )
 
-    readonly_fields = (
-        "created_at",
-        "is_structured_ready",
-        "structured_generated_at",
-        "is_chunking_ready",
-        "chunking_generated_at",
-        "is_embeddings_ready",
-        "embeddings_generated_at",
-    )
+    readonly_fields = ("created_at",)
 
     ordering = ("-created_at",)
     show_change_link = True
@@ -80,7 +61,6 @@ class DocumentAdmin(admin.ModelAdmin):
         "title",
         "owner",
         "category",
-        "school",
         "current_version",
         "is_archived",
         "is_current",
@@ -89,7 +69,6 @@ class DocumentAdmin(admin.ModelAdmin):
     list_filter = (
         "category",
         "category__level",
-        "school",
         "is_archived",
         "is_current",
         "created_at",
@@ -104,10 +83,10 @@ class DocumentAdmin(admin.ModelAdmin):
         "owner__first_name",
         "owner__last_name",
     )
-    autocomplete_fields = ("owner", "school", "category", "current_version")
+    autocomplete_fields = ("owner", "category", "current_version")
     ordering = ("-updated_at",)
     inlines = [DocumentVersionInline]
-    list_select_related = ("owner", "category", "school", "current_version")
+    list_select_related = ("owner", "category", "current_version")
 
     fieldsets = (
         (
@@ -117,7 +96,6 @@ class DocumentAdmin(admin.ModelAdmin):
                     "title",
                     "description",
                     "category",
-                    "school",
                     "owner",
                 ),
             },
@@ -172,19 +150,10 @@ class DocumentVersionAdmin(admin.ModelAdmin):
         "created_by",
         "created_at",
         "page_count",
-        "is_structured_ready",
-        "is_chunking_ready",
-        "is_embeddings_ready",
-        "structured_generated_at",
-        "chunking_generated_at",
-        "embeddings_generated_at",
     )
     list_filter = (
         "status",
         "source",
-        "is_structured_ready",
-        "is_chunking_ready",
-        "is_embeddings_ready",
         "created_at",
     )
     search_fields = (
@@ -194,7 +163,6 @@ class DocumentVersionAdmin(admin.ModelAdmin):
     )
     autocomplete_fields = ("document", "created_by")
     ordering = ("-created_at",)
-    inlines = [DocumentChunkInline]
     list_select_related = ("document", "created_by")
 
     fieldsets = (
@@ -222,32 +190,6 @@ class DocumentVersionAdmin(admin.ModelAdmin):
             },
         ),
         (
-            "Structured content",
-            {
-                "fields": (
-                    "is_structured_ready",
-                    "structured_generated_at",
-                    "rendered_structured_preview",
-                    "structured_content",
-                    "structured_error",
-                ),
-            },
-        ),
-        (
-            "AI processing",
-            {
-                "fields": (
-                    "is_chunking_ready",
-                    "chunking_generated_at",
-                    "chunking_error",
-                    "is_embeddings_ready",
-                    "embeddings_generated_at",
-                    "embeddings_error",
-                    "ai_summary",
-                ),
-            },
-        ),
-        (
             "Timestamps",
             {
                 "fields": ("created_at",),
@@ -255,30 +197,4 @@ class DocumentVersionAdmin(admin.ModelAdmin):
         ),
     )
 
-    readonly_fields = (
-        "created_at",
-        "is_structured_ready",
-        "structured_generated_at",
-        "structured_content",
-        "structured_error",
-        "rendered_structured_preview",
-        "is_chunking_ready",
-        "chunking_generated_at",
-        "chunking_error",
-        "is_embeddings_ready",
-        "embeddings_generated_at",
-        "embeddings_error",
-        "ai_summary",
-    )
-
-    def rendered_structured_preview(self, obj: DocumentVersion) -> str:
-        """Render structured content as HTML preview."""
-        if not obj.structured_content:
-            return "No hay contenido estructurado."
-
-        blocks = obj.structured_content.get("blocks", [])
-        html = render_structured_content_to_html(blocks)
-
-        return mark_safe(html)
-
-    rendered_structured_preview.short_description = "Vista procesada (HTML)"
+    readonly_fields = ("created_at",)

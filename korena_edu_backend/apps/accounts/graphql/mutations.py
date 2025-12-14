@@ -9,11 +9,7 @@ from rest_framework_simplejwt.serializers import (
 import strawberry
 from strawberry.types import Info
 
-from apps.accounts.forms import (
-    ChangePasswordForm,
-    RegisterForm,
-    UpdateUserForm,
-)
+from apps.accounts.forms import ChangePasswordForm, RegisterForm, UpdateUserForm
 from apps.accounts.graphql.types import EmailPayload, RegisterUserPayload, TokenPair
 from apps.accounts.utils import generate_token_and_email, verify_token
 from apps.core.endpoints.permissions import IsAuthenticatedGraphql, IsVerifiedGraphql
@@ -32,20 +28,6 @@ class AccountMutations:
     @strawberry.mutation(name="loginUser")
     def login_user(self, info: Info, email: str, password: str) -> TokenPair:
         """Authenticate user and return an access + refresh token pair."""
-        user = authenticate(email=email, password=password)
-
-        if not user:
-            # Invalid credentials.
-            raise ValueError(ERROR_MESSAGES["auth.invalid_credentials"])
-
-        if not user.is_active:
-            # Inactive / disabled account.
-            raise ValueError(ERROR_MESSAGES["auth.not_authenticated"])
-
-        if not getattr(user, "is_verified", False):
-            # Email not verified yet.
-            raise PermissionError(ERROR_MESSAGES["auth.not_verified"])
-
         serializer = TokenObtainPairSerializer(
             data={"email": email, "password": password},
             context={"request": info.context.request},
@@ -53,6 +35,14 @@ class AccountMutations:
 
         if not serializer.is_valid():
             raise ValueError(ERROR_MESSAGES["auth.invalid_credentials"])
+
+        user = authenticate(email=email, password=password)
+
+        if not user or not user.is_active:
+            raise ValueError(ERROR_MESSAGES["auth.not_authenticated"])
+
+        if not getattr(user, "is_verified", False):
+            raise PermissionError(ERROR_MESSAGES["auth.not_verified"])
 
         tokens = serializer.validated_data
 
@@ -72,10 +62,9 @@ class AccountMutations:
             raise ValueError(ERROR_MESSAGES["auth.token_invalid"])
 
         data = serializer.validated_data
-        new_access = str(data["access"])
 
         return TokenPair(
-            access=new_access,
+            access=str(data["access"]),
             refresh=refresh,
         )
 
@@ -113,8 +102,7 @@ class AccountMutations:
         )
 
         if not form.is_valid():
-            fields = build_form_errors(form)
-            raise_form_error(fields)
+            raise_form_error(build_form_errors(form))
 
         user = User.objects.create_user(
             email=form.cleaned_data["email"],
@@ -144,7 +132,7 @@ class AccountMutations:
 
         user.is_verified = True
         user.is_active = True
-        user.save()
+        user.save(update_fields=["is_verified", "is_active"])
 
         return EmailPayload(email=email)
 
@@ -152,12 +140,7 @@ class AccountMutations:
         name="updateUser",
         permission_classes=[IsAuthenticatedGraphql, IsVerifiedGraphql],
     )
-    def update_user(
-        self,
-        info: Info,
-        first_name: str,
-        last_name: str,
-    ) -> EmailPayload:
+    def update_user(self, info: Info, first_name: str, last_name: str) -> EmailPayload:
         """Update the authenticated user's profile."""
         user = info.context.request.user
 
@@ -167,8 +150,7 @@ class AccountMutations:
         )
 
         if not form.is_valid():
-            fields = build_form_errors(form)
-            raise_form_error(fields)
+            raise_form_error(build_form_errors(form))
 
         updated_user = form.save()
 
@@ -194,12 +176,10 @@ class AccountMutations:
         form = ChangePasswordForm({"password1": password1, "password2": password2})
 
         if not form.is_valid():
-            fields = build_form_errors(form)
-            raise_form_error(fields)
+            raise_form_error(build_form_errors(form))
 
-        new_password = form.cleaned_data["password1"]
-        user.set_password(new_password)
-        user.save()
+        user.set_password(form.cleaned_data["password1"])
+        user.save(update_fields=["password"])
 
         return EmailPayload(email=user.email)
 
@@ -207,18 +187,14 @@ class AccountMutations:
         name="deleteAccount",
         permission_classes=[IsAuthenticatedGraphql, IsVerifiedGraphql],
     )
-    def delete_account(
-        self,
-        info: Info,
-        current_password: str,
-    ) -> EmailPayload:
+    def delete_account(self, info: Info, current_password: str) -> EmailPayload:
         """Permanently delete the user account."""
         user = info.context.request.user
 
         if not user.check_password(current_password):
             raise PermissionError(ERROR_MESSAGES["auth.invalid_current_password"])
 
-        deleted_email = user.email
+        email = user.email
         user.delete()
 
-        return EmailPayload(email=deleted_email)
+        return EmailPayload(email=email)

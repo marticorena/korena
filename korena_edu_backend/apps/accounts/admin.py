@@ -8,7 +8,6 @@ from apps.accounts.models import User
 class UserAdmin(BaseUserAdmin):
     """Admin interface for custom User model."""
 
-    # Fields visible in the list page
     list_display = (
         "email",
         "first_name",
@@ -20,6 +19,7 @@ class UserAdmin(BaseUserAdmin):
         "school",
         "date_joined",
     )
+
     list_filter = (
         "role",
         "is_verified",
@@ -27,27 +27,34 @@ class UserAdmin(BaseUserAdmin):
         "is_staff",
         "school",
     )
+
     search_fields = (
         "email",
         "first_name",
         "last_name",
     )
+
     ordering = ("email",)
 
-    # Use autocomplete for foreign keys
     autocomplete_fields = ("school",)
 
-    # What the admin uses as display labels
     fieldsets = (
         ("Basic Info", {"fields": ("email", "password")}),
         ("Personal Details", {"fields": ("first_name", "last_name")}),
         (
-            "Role & Permissions",
+            "Account Status",
             {
                 "fields": (
                     "role",
                     "is_verified",
                     "is_active",
+                )
+            },
+        ),
+        (
+            "Permissions",
+            {
+                "fields": (
                     "is_staff",
                     "is_superuser",
                     "groups",

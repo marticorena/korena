@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Any
 from urllib.parse import quote
 
 from django.conf import settings
@@ -27,19 +27,19 @@ def generate_verification_token(email: str) -> str:
     return signer.sign(email)
 
 
-def generate_token_and_email(user: User) -> Tuple[str, EmailLog]:
+def generate_token_and_email(user: Any) -> tuple[str, EmailLog]:
     """Generate a verification token, build verification email content, and persist email log.
 
     Args:
-        user (User): The user instance for whom the verification token is generated.
+        user: The user instance for whom the verification token is generated.
 
     Returns:
-        Tuple[str, EmailLog]: A tuple containing:
+        tuple[str, EmailLog]: A tuple containing:
             - str: The raw verification token before encoding.
             - EmailLog: The saved email log entry containing HTML and plain message versions.
     """
     token = generate_verification_token(user.email)
-    encoded_token = quote(token)
+    encoded_token = quote(token, safe="")
 
     verify_url = f"{settings.FRONTEND_URL}/verify-email?token={encoded_token}"
 
@@ -52,7 +52,7 @@ def generate_token_and_email(user: User) -> Tuple[str, EmailLog]:
 
     subject = "Korena - Verifica tu cuenta"
 
-    email = EmailLog.objects.create(
+    email_log = EmailLog.objects.create(
         from_email=settings.DEFAULT_FROM_EMAIL,
         to_email=user.email,
         user=user,
@@ -61,10 +61,10 @@ def generate_token_and_email(user: User) -> Tuple[str, EmailLog]:
         html_message=html_message,
     )
 
-    return token, email
+    return token, email_log
 
 
-def verify_token(token: str, max_age=60 * 60 * 24) -> str:  # 24 hours
+def verify_token(token: str, max_age: int = 60 * 60 * 24) -> str | None:
     """Verify a token and extract the email.
 
     Args:
@@ -72,12 +72,11 @@ def verify_token(token: str, max_age=60 * 60 * 24) -> str:  # 24 hours
         max_age: Maximum age of the token in seconds. Defaults to 24 hours.
 
     Returns:
-        str: The email address if the token is valid, None otherwise.
+        str | None: The email address if the token is valid, otherwise None.
     """
     try:
         email = signer.unsign(token, max_age=max_age)
 
         return email
     except (BadSignature, SignatureExpired):
-
         return None

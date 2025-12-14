@@ -9,10 +9,6 @@ from apps.documents.models.abstracts import (
 )
 from apps.documents.models.choices import DocumentLevel, DocumentVersionStatus
 from apps.documents.validators import validate_pdf_or_docx
-from apps.documents_ai.models.abstracts import (
-    DocumentProcessingMetadata,
-    DocumentStructuredContentMetadata,
-)
 
 
 class DocumentCategory(models.Model):
@@ -60,15 +56,6 @@ class Document(DocumentVersioningMetadata, NormativeDocumentMetadata):
         help_text="Usuario propietario del documento.",
     )
 
-    school = models.ForeignKey(
-        "schools.School",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="documents",
-        help_text="Colegio asociado al documento, si aplica.",
-    )
-
     category = models.ForeignKey(
         DocumentCategory,
         on_delete=models.PROTECT,
@@ -95,8 +82,6 @@ class Document(DocumentVersioningMetadata, NormativeDocumentMetadata):
 
 class DocumentVersion(
     FileMetadata,
-    DocumentProcessingMetadata,
-    DocumentStructuredContentMetadata,
 ):
     """Represents a single version of a document.
 
