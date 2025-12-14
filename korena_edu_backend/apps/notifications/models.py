@@ -12,17 +12,11 @@ class EmailStatus(models.TextChoices):
 
 
 class EmailLog(models.Model):
-    """Stores the delivery history of sent emails.
-
-    This includes:
-    - The destination email
-    - A rendered snapshot of the body at the moment of sending
-    - Delivery status and provider message ID
-    - Retry count and timestamps
-    """
+    """Stores a snapshot of an email sent by the system."""
 
     from_email = models.EmailField()
     to_email = models.EmailField()
+
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -33,7 +27,7 @@ class EmailLog(models.Model):
 
     subject = models.CharField(max_length=255)
     plain_message = models.TextField()
-    html_message = models.TextField(blank=True, null=True)
+    html_message = models.TextField(blank=True)
 
     status = models.CharField(
         max_length=20,
@@ -41,17 +35,14 @@ class EmailLog(models.Model):
         default=EmailStatus.PENDING,
     )
     error_message = models.TextField(blank=True)
-    provider_message_id = models.CharField(max_length=255, blank=True)
-    retries = models.PositiveIntegerField(default=0)
 
     created_at = models.DateTimeField(default=timezone.now)
     sent_at = models.DateTimeField(null=True, blank=True)
-    last_attempt_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["-created_at"]
 
     def __str__(self) -> str:
-        """Return a readable representation of the email log sent."""
+        """Return a readable representation of the email log."""
 
         return f"{self.to_email} - {self.subject} [{self.status}]"

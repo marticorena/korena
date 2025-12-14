@@ -1,18 +1,10 @@
-from typing import Any, Dict
-
 from rest_framework import serializers
 
-from apps.documents.models.documents import DocumentVersion
+from apps.documents.models import DocumentVersion
 
 
 class DocumentVersionSerializer(serializers.ModelSerializer):
-    """Serializer for document versions.
-
-    This serializer exposes both user-visible fields (file, status)
-    and internal metadata fields that are useful for inspection and
-    debugging (indexing flags, file metadata). The extracted_text field
-    is intentionally omitted to avoid sending large payloads.
-    """
+    """Serializer for document versions."""
 
     class Meta:
         model = DocumentVersion
@@ -20,42 +12,10 @@ class DocumentVersionSerializer(serializers.ModelSerializer):
             "id",
             "document",
             "file",
-            "status",
-            "created_by",
             "created_at",
-            "source",
-            # File metadata (FileMetadata mixin)
-            "original_filename",
-            "mime_type",
-            "checksum",
-            "page_count",
-            # IA processing metadata (AIProcessingMetadata mixin)
-            "is_chunking_ready",
-            "chunking_error",
         ]
-
         read_only_fields = [
             "id",
-            "created_by",
+            "document",
             "created_at",
-            "source",
-            "original_filename",
-            "mime_type",
-            "checksum",
-            "page_count",
-            "is_chunking_ready",
-            "chunking_error",
         ]
-
-    def to_representation(self, instance: DocumentVersion) -> Dict[str, Any]:
-        """Return the serialized representation.
-
-        Args:
-            instance: DocumentVersion instance.
-
-        Returns:
-            Serialized data as a dict.
-        """
-        data = super().to_representation(instance)
-
-        return data

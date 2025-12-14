@@ -3,8 +3,7 @@ from typing import Any
 from strawberry.exceptions import GraphQLError
 
 from apps.core.messages import ERROR_MESSAGES
-from apps.documents.models.choices import DocumentLevel
-from apps.documents.models.documents import DocumentVersion
+from apps.documents.models import DocumentLevel, DocumentVersion
 
 
 def require_document_version_access(

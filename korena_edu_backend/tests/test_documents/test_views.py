@@ -13,7 +13,7 @@ from apps.core.metrics import (
     documents_by_level_total,
 )
 from apps.core.utils import get_metric_value
-from apps.documents.models.documents import (
+from apps.documents.models import (
     DocumentLevel,
     DocumentVersion,
     DocumentVersionStatus,

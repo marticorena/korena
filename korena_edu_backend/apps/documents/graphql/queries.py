@@ -7,7 +7,7 @@ from strawberry.types import Info
 from apps.core.endpoints.permissions import IsAuthenticatedGraphql, IsVerifiedGraphql
 from apps.core.messages import ERROR_MESSAGES
 from apps.documents.graphql.types import DocumentType
-from apps.documents.models.documents import Document, DocumentLevel
+from apps.documents.models import Document, DocumentLevel
 
 
 @strawberry.type

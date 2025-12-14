@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from apps.documents.models.documents import Document, DocumentCategory, DocumentVersion
+from apps.documents.models import Document, DocumentCategory, DocumentVersion
 
 
 @admin.register(DocumentCategory)
@@ -11,24 +11,19 @@ class DocumentCategoryAdmin(admin.ModelAdmin):
         "code",
         "name",
         "level",
-        "minedu_reference",
     )
     list_filter = ("level",)
-    search_fields = ("code", "name", "description", "minedu_reference")
+    search_fields = (
+        "code",
+        "name",
+        "description",
+    )
     ordering = ("level", "name")
     prepopulated_fields = {"code": ("name",)}
 
     fieldsets = (
         (None, {"fields": ("code", "name", "description")}),
-        (
-            "Classification",
-            {
-                "fields": (
-                    "level",
-                    "minedu_reference",
-                ),
-            },
-        ),
+        ("Classification", {"fields": ("level",)}),
     )
 
 
@@ -39,16 +34,14 @@ class DocumentVersionInline(admin.TabularInline):
     extra = 0
 
     fields = (
+        "id",
         "file",
-        "status",
-        "source",
-        "created_by",
         "created_at",
-        "page_count",
     )
-
-    readonly_fields = ("created_at",)
-
+    readonly_fields = (
+        "id",
+        "created_at",
+    )
     ordering = ("-created_at",)
     show_change_link = True
 
@@ -60,58 +53,50 @@ class DocumentAdmin(admin.ModelAdmin):
     list_display = (
         "title",
         "owner",
+        "school",
         "category",
         "current_version",
         "is_archived",
-        "is_current",
         "updated_at",
     )
     list_filter = (
         "category",
         "category__level",
         "is_archived",
-        "is_current",
         "created_at",
     )
     search_fields = (
         "title",
         "description",
-        "official_code",
-        "official_number",
-        "issuing_entity",
         "owner__email",
         "owner__first_name",
         "owner__last_name",
     )
-    autocomplete_fields = ("owner", "category", "current_version")
+    autocomplete_fields = (
+        "owner",
+        "school",
+        "category",
+        "current_version",
+    )
     ordering = ("-updated_at",)
     inlines = [DocumentVersionInline]
-    list_select_related = ("owner", "category", "current_version")
+    list_select_related = (
+        "owner",
+        "school",
+        "category",
+        "current_version",
+    )
 
     fieldsets = (
         (
-            "Document Info",
+            "Document",
             {
                 "fields": (
                     "title",
                     "description",
                     "category",
                     "owner",
-                ),
-            },
-        ),
-        (
-            "Normative metadata",
-            {
-                "fields": (
-                    "official_code",
-                    "official_number",
-                    "official_year",
-                    "issuing_entity",
-                    "official_url",
-                    "valid_from",
-                    "valid_until",
-                    "is_current",
+                    "school",
                 ),
             },
         ),
@@ -135,7 +120,10 @@ class DocumentAdmin(admin.ModelAdmin):
         ),
     )
 
-    readonly_fields = ("created_at", "updated_at")
+    readonly_fields = (
+        "created_at",
+        "updated_at",
+    )
 
 
 @admin.register(DocumentVersion)
@@ -145,25 +133,13 @@ class DocumentVersionAdmin(admin.ModelAdmin):
     list_display = (
         "id",
         "document",
-        "status",
-        "source",
-        "created_by",
-        "created_at",
-        "page_count",
-    )
-    list_filter = (
-        "status",
-        "source",
         "created_at",
     )
-    search_fields = (
-        "document__title",
-        "original_filename",
-        "created_by__email",
-    )
-    autocomplete_fields = ("document", "created_by")
+    list_filter = ("created_at",)
+    search_fields = ("document__title",)
+    autocomplete_fields = ("document",)
     ordering = ("-created_at",)
-    list_select_related = ("document", "created_by")
+    list_select_related = ("document",)
 
     fieldsets = (
         (
@@ -172,20 +148,6 @@ class DocumentVersionAdmin(admin.ModelAdmin):
                 "fields": (
                     "document",
                     "file",
-                    "status",
-                    "source",
-                    "created_by",
-                ),
-            },
-        ),
-        (
-            "File metadata",
-            {
-                "fields": (
-                    "original_filename",
-                    "mime_type",
-                    "checksum",
-                    "page_count",
                 ),
             },
         ),

@@ -16,20 +16,11 @@ from apps.core.endpoints.permissions import IsAuthenticatedRest, IsVerifiedRest
 from apps.core.endpoints.utils import graphql_style_error_response
 from apps.core.messages import ERROR_MESSAGES
 from apps.documents.api.serializers import DocumentVersionSerializer
-from apps.documents.models.documents import (
-    Document,
-    DocumentVersion,
-    DocumentVersionStatus,
-)
+from apps.documents.models import Document, DocumentVersion
 
 
 class DocumentVersionUploadView(APIView):
-    """REST endpoint to upload a new document version with GraphQL-like errors.
-
-    This view accepts a multipart/form-data request with a single `file`
-    field and creates a new DocumentVersion associated with the given
-    document_id, updating the document.current_version pointer.
-    """
+    """Upload a new document version with GraphQL-like errors."""
 
     parser_classes = [MultiPartParser, FormParser]
     authentication_classes = (JWTAuthentication,)
@@ -38,30 +29,19 @@ class DocumentVersionUploadView(APIView):
     graphql_path = ["documentVersionUpload"]
 
     def handle_exception(self, exc: Exception) -> Response:
-        """Normalize auth/permission errors to a GraphQL-like error payload.
-
-        Args:
-            exc: Exception raised by the view.
-
-        Returns:
-            Response: DRF response with a GraphQL-like error envelope.
-        """
+        """Normalize auth/permission errors to a GraphQL-like error payload."""
         if isinstance(exc, (NotAuthenticated, AuthenticationFailed)):
+
             return graphql_style_error_response(
-                message=ERROR_MESSAGES.get(
-                    "auth.not_authenticated",
-                    "No autenticado.",
-                ),
+                message=ERROR_MESSAGES["auth.not_authenticated"],
                 status_code=status.HTTP_403_FORBIDDEN,
                 path=self.graphql_path,
             )
 
         if isinstance(exc, PermissionDenied):
+
             return graphql_style_error_response(
-                message=ERROR_MESSAGES.get(
-                    "auth.not_verified",
-                    "Cuenta no verificada.",
-                ),
+                message=ERROR_MESSAGES["auth.not_verified"],
                 status_code=status.HTTP_403_FORBIDDEN,
                 path=self.graphql_path,
             )
@@ -75,20 +55,13 @@ class DocumentVersionUploadView(APIView):
         *args: Any,
         **kwargs: Any,
     ) -> Response:
-        """Handle a new document version upload.
-
-        Args:
-            request: Incoming HTTP request.
-            document_id: ID of the Document that will receive the new version.
-
-        Returns:
-            Response: Serialized DocumentVersion data or GraphQL-like error.
-        """
+        """Handle a new document version upload."""
         user = request.user
 
         try:
             document = Document.objects.get(pk=document_id, owner=user)
         except Document.DoesNotExist:
+
             return graphql_style_error_response(
                 message=ERROR_MESSAGES["documents.not_found_or_not_owned"],
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -98,6 +71,7 @@ class DocumentVersionUploadView(APIView):
 
         uploaded_file = request.FILES.get("file")
         if not uploaded_file:
+
             return graphql_style_error_response(
                 message=ERROR_MESSAGES["upload.no_file"],
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -105,24 +79,11 @@ class DocumentVersionUploadView(APIView):
                 code="BAD_USER_INPUT",
             )
 
-        # Extract basic file metadata from the uploaded file.
-        original_filename = getattr(uploaded_file, "name", "")
-        mime_type = getattr(uploaded_file, "content_type", "") or ""
-
-        # Create the new version as DRAFT; promotion to ACTIVE can be
-        # handled in a separate flow if needed.
         version = DocumentVersion.objects.create(
             document=document,
             file=uploaded_file,
-            status=DocumentVersionStatus.DRAFT,
-            created_by=user,
-            original_filename=original_filename,
-            mime_type=mime_type,
-            # page_count, language, checksum, extracted_text, etc.
-            # will be filled later by background processing.
         )
 
-        # Update the current_version pointer to this new version.
         document.current_version = version
         document.save(update_fields=["current_version", "updated_at"])
 
@@ -132,5 +93,4 @@ class DocumentVersionUploadView(APIView):
             "version": serializer.data,
         }
 
-        # Success stays as plain JSON payload (no GraphQL envelope).
         return Response(payload, status=status.HTTP_201_CREATED)

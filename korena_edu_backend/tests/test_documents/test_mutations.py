@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 import pytest
 
 from apps.core.messages import ERROR_MESSAGES
-from apps.documents.models.documents import Document, DocumentCategory, DocumentLevel
+from apps.documents.models import Document, DocumentCategory, DocumentLevel
 from tests.test_documents.graphql_strings import (
     CREATE_DOCUMENT_CATEGORY_MUTATION,
     CREATE_DOCUMENT_MUTATION,

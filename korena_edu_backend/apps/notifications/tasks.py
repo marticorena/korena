@@ -1,6 +1,5 @@
 import logging
 
-from django.conf import settings
 from django.core.mail import send_mail
 from django.utils import timezone
 
@@ -13,54 +12,38 @@ logger = logging.getLogger(__name__)
 
 @shared_task(bind=True, max_retries=3)
 def send_email_task(self, email_log_id: int) -> None:
-    """Send an email asynchronously and update the EmailLog entry.
-
-    Args:
-        self: Celery task instance (used for retry logic).
-        email_log_id (int): Primary key of the EmailLog to process.
-
-    Raises:
-        self.retry: Re-raised when an email fails, triggering a retry.
-    """
+    """Send an email asynchronously and update the EmailLog entry."""
     try:
-        log: EmailLog = EmailLog.objects.get(pk=email_log_id)
+        log = EmailLog.objects.get(pk=email_log_id)
     except EmailLog.DoesNotExist:
         logger.error("EmailLog with id=%s does not exist.", email_log_id)
+
         return
 
     try:
-        # Send the email using Django's email backend
         send_mail(
             subject=log.subject,
             message=log.plain_message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
+            from_email=log.from_email,
             recipient_list=[log.to_email],
-            html_message=log.html_message,
+            html_message=log.html_message or None,
         )
 
-        # Update success state
-        now = timezone.now()
         log.status = EmailStatus.SENT
-        log.sent_at = now
-        log.last_attempt_at = now
-        log.save(update_fields=["status", "sent_at", "last_attempt_at"])
+        log.sent_at = timezone.now()
+        log.error_message = ""
+        log.save(update_fields=["status", "sent_at", "error_message"])
 
     except Exception as exc:
-        # Update failure state
-        now = timezone.now()
         log.status = EmailStatus.FAILED
-        log.retries += 1
         log.error_message = str(exc)
-        log.last_attempt_at = now
-        log.save(
-            update_fields=["status", "retries", "error_message", "last_attempt_at"]
-        )
+        log.save(update_fields=["status", "error_message"])
 
+        attempt = getattr(self.request, "retries", 0) + 1
         logger.exception(
             "Error sending email (EmailLog id=%s). Attempt #%s",
             email_log_id,
-            log.retries,
+            attempt,
         )
 
-        # Retry after 30 seconds
         raise self.retry(exc=exc, countdown=30)

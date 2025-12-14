@@ -1,6 +1,6 @@
 from django.contrib.auth import get_user_model
 
-from apps.documents.models.documents import Document, DocumentCategory, DocumentLevel
+from apps.documents.models import Document, DocumentCategory, DocumentLevel
 
 User = get_user_model()
 
