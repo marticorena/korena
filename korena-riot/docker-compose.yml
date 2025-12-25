@@ -1,0 +1,32 @@
+services:
+  django-app:
+    build: .
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/django-app
+    env_file:
+      - .env
+    expose:
+      - "8000"
+    depends_on:
+      - postgres
+    networks:
+      - django-app-network
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - django-app-network
+
+volumes:
+  postgres_data:
+
+networks:
+  django-app-network:
+    driver: bridge
